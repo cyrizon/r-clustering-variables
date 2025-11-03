@@ -1,0 +1,49 @@
+Package: clustVarACC
+Type: Package
+Title: Variable Clustering with R6 Classes and Shiny Demonstration
+Version: 0.1.0
+Authors@R: c(
+    person(
+      given = "Anne-Camille", 
+      family = "VIAL",
+      email = "anne-camille.vial@univ-lyon2.fr",
+      role = c("aut", "ctb")
+    )
+    ,
+    person(
+      given = "Constantin", 
+      family = "REY-COQUAIS",
+      email = "constantin.rey-coquais@univ-lyon2.fr",
+      role = c("aut", "ctb")
+    )
+    ,
+    person(
+      given = "Cyrille", 
+      family = "PECNIK",
+      email = "cyrille.pecnik@univ-lyon2.fr",
+      role = c("aut", "cre")
+    )
+  )
+Description: 
+  This package provides several algorithms for variable clustering 
+  (including hierarchical, relocation-based, and qualitative-variable methods)
+  implemented with R6 object-oriented classes. 
+  It also includes interpretation tools (plots, summaries, membership tables)
+  and an integrated Shiny application for interactive exploration of results.
+License: MIT Licence
+Encoding: UTF-8
+LazyData: true
+Depends:
+  R (>= 4.1)
+Imports:
+  R6,
+  shiny
+Suggests:
+  testthat,
+  usethis,
+  devtools,
+  roxygen2,
+  roxygen2md
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+VignetteBuilder: knitr
