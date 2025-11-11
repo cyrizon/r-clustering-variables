@@ -1,6 +1,6 @@
 library(FactoMineR)
 
-# --- Fonction η² manuelle adaptée aux variables catégorielles ---
+# Fonction η² manuelle adaptée aux variables catégorielles ---
 eta2_manual <- function(fac, z) {
   fac <- as.factor(fac)
   z <- as.numeric(z)
