@@ -1,0 +1,1 @@
+# ICI ON AURA LA CLASSE KMeansVariablesR6

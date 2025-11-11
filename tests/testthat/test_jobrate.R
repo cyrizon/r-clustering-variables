@@ -4,6 +4,10 @@
 # Étape 2 : Charger le package
 library(readxl)
 
+# Charger les classes R6
+source("R/algorithms/KMeansVariablesR6.R")
+source("R/algorithms/HACVariablesR6.R")
+
 # La fonction file.choose() ouvre une fenêtre pour sélectionner le fichier
 jobrate <- read_excel(file.choose())
 
@@ -12,11 +16,13 @@ head(jobrate)
 
 
 # --- Définition des Variables ---
-active_vars <- c("Communication_Skills", "Problem_Solving", "Learning_Ability",
-                 "Judgement_under_Pressure", "Observational_Skills",
-                 "Willingness_to_Confront_Problems", "Interest_in_People",
-                 "Interpersonal_Sensitivity", "Desire_for_Self_Improvement",
-                 "Appearance", "Dependability", "Physical_Ability", "Integrity")
+active_vars <- c(
+    "Communication_Skills", "Problem_Solving", "Learning_Ability",
+    "Judgement_under_Pressure", "Observational_Skills",
+    "Willingness_to_Confront_Problems", "Interest_in_People",
+    "Interpersonal_Sensitivity", "Desire_for_Self_Improvement",
+    "Appearance", "Dependability", "Physical_Ability", "Integrity"
+)
 
 illustrative_vars <- "Overall_Rating"
 
@@ -35,9 +41,9 @@ X_illustrative <- jobrate[, illustrative_vars, drop = FALSE]
 message("\n--- Démarrage de la CAH (HAC) sur les variables actives (k=4) ---")
 
 cah_model <- HACVariablesR6$new(
-  k = 4,
-  distance_method = "correlation",
-  linkage_method = "ward.D2"
+    k = 4,
+    distance_method = "correlation",
+    linkage_method = "ward.D2"
 )
 
 # Ajustement du modèle
