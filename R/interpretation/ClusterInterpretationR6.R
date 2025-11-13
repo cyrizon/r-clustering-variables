@@ -1,7 +1,6 @@
-#' Classe R6 pour l'interprétation des résultats de clustering de variables
-#'
-#' Permet de générer des tableaux et indicateurs pour interpréter la nature des groupes et le degré d'appartenance.
-#'
+# Classe R6 pour l'interprétation des résultats de clustering de variables
+
+# Permet de générer des tableaux et indicateurs pour interpréter la nature des groupes et le degré d'appartenance.
 ClusterInterpretationR6 <- R6::R6Class(
     "ClusterInterpretationR6",
     public = list(

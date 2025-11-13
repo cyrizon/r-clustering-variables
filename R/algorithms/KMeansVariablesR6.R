@@ -1,7 +1,4 @@
-#' Classe R6 pour le clustering de variables par K-means
-#'
-#' Cette classe permet d'encapsuler l'algorithme de clustering K-means sur variables.
-#'
+# Cette classe permet d'encapsuler l'algorithme de clustering K-means sur variables.
 
 KMeansVariablesR6 <- R6::R6Class(
     "KMeansVariablesR6",
