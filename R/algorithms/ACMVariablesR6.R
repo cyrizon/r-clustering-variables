@@ -1,7 +1,7 @@
 library(R6)
 library(FactoMineR)
 
-# Définition de la classe R6 pour le clustering de variables catégorielles via ACM
+# Cette classe permet d'encapsuler l'algorithme de  clustering de variables catégorielles via ACM
 ClustVarACM <- R6::R6Class(
     classname = "ClustVarACM",
     public = list(
@@ -17,7 +17,7 @@ ClustVarACM <- R6::R6Class(
         max_iter = NULL,
         verbose = NULL,
 
-        # Initialisation
+        # Constructeur
         initialize = function(data, K, max_iter = 30, tol = 1e-4, verbose = TRUE) {
             self$data <- data
             self$K <- K
@@ -28,11 +28,14 @@ ClustVarACM <- R6::R6Class(
             if (verbose) cat("Objet ClustVarACM initialisé avec", ncol(data), "variables et", K, "clusters.\n")
         },
 
-        # Méthode de modélisation
+        # Fit : modélisation 
         fit = function() {
             p <- ncol(self$data)
             Q_old <- 0
             self$Q_trace <- c()
+
+            # Etape 0 : Contrôle
+            
 
             # Étape 1 : Calcul des axes (ACM)
             for (iter in 1:self$max_iter) {
