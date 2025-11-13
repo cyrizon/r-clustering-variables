@@ -1,7 +1,6 @@
-#' Classe R6 pour l'orchestration du clustering de variables
-#'
-#' Cette classe permet d'orchestrer le clustering de variables via les différents algorithmes disponibles.
-#'
+# Classe R6 pour l'orchestration du clustering de variables
+
+# Cette classe permet d'orchestrer le clustering de variables via les différents algorithmes disponibles.
 ClusteringOrchestratorR6 <- R6::R6Class(
     "ClusteringOrchestratorR6",
     public = list(
