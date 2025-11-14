@@ -37,8 +37,12 @@ Depends:
   R (>= 4.1)
 Imports:
   R6,
-  shiny
+  shiny,
+  shinyjs,
+  DT
 Suggests:
+  cluster,
+  pheatmap,
   testthat,
   usethis,
   devtools,
