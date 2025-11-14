@@ -1,0 +1,11 @@
+Modele	puissance	longueur	hauteur	poids	CO2	origine	carburant	T4X4
+GOLF        	75	421	149	1217	143	Europe	Diesel	non
+CITROEN.C4    	138	426	146	1381	142	France	Diesel	non
+P607        	204	491	145	1723	223	France	Diesel	non
+VELSATIS    	150	486	158	1735	188	France	Diesel	non
+CITROEN.C2    	61	367	147	932	141	France	Essence	non
+CHRYS300    	340	502	148	1835	291	Autres	Essence	non
+AUDIA3      	102	421	143	1205	168	Europe	Essence	non
+OUTLAND     	202	455	167	1595	237	Autres	Diesel	oui
+PTCRUISER   	223	429	154	1595	235	Autres	Essence	non
+SANTA_FE    	125	450	173	1757	197	Autres	Diesel	oui
