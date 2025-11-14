@@ -7,8 +7,43 @@ library(shiny)
 library(DT)
 library(R6)
 
-# Load the KMeans clustering class
-source("../../R/algorithms/KMeansVariablesR6.R", local = TRUE)
+# Load algorithm classes with error handling
+has_hac <- FALSE
+has_acm <- FALSE
+tryCatch(
+    {
+        source("../../R/algorithms/KMeansVariablesR6.R", local = TRUE)
+    },
+    error = function(e) {
+        message(paste("Failed to load KMeans class:", e$message))
+    }
+)
+tryCatch(
+    {
+        source("../../R/algorithms/HACVariablesR6.R", local = TRUE)
+        has_hac <<- TRUE
+    },
+    error = function(e) {
+        has_hac <<- FALSE
+    }
+)
+tryCatch(
+    {
+        source("../../R/algorithms/ACMVariablesR6.R", local = TRUE)
+        has_acm <<- TRUE
+    },
+    error = function(e) {
+        has_acm <<- FALSE
+    }
+)
+
+# Load helper modules
+source("../../R/alg_helpers.R", local = TRUE)
+source("R/data_handlers.R", local = TRUE)
+source("R/clustering_logic.R", local = TRUE)
+source("R/visualizations.R", local = TRUE)
+source("R/algo_parameter_helpers.R", local = TRUE)
+source("R/predictions.R", local = TRUE)
 
 # Server function
 function(input, output, session) {
@@ -24,6 +59,12 @@ function(input, output, session) {
         k_plot_data = NULL # Data for k selection plot
     )
 
+    # Reactive: selected dataset (centralized)
+    selected_data <- reactive({
+        req(rv$data, input$selected_vars)
+        rv$data[, input$selected_vars, drop = FALSE]
+    })
+
     # =========================================================================
     # DATA LOADING
     # =========================================================================
@@ -32,32 +73,11 @@ function(input, output, session) {
     observeEvent(input$load_example, {
         tryCatch(
             {
-                # Try to load College_Data
-                data_path <- "../../tests/testthat/College_Data"
-                if (file.exists(data_path)) {
-                    rv$data <- read.csv(data_path, row.names = 1)
-                    showNotification("✅ Example data loaded successfully!",
-                        type = "message", duration = 3
-                    )
-                } else {
-                    # Generate synthetic data if example not found
-                    set.seed(42)
-                    n <- 100
-                    rv$data <- data.frame(
-                        Var1 = rnorm(n),
-                        Var2 = rnorm(n) + rnorm(n, sd = 0.3),
-                        Var3 = rnorm(n),
-                        Var4 = rnorm(n) * 2,
-                        Var5 = rnorm(n) + rnorm(n, sd = 0.5),
-                        Var6 = rnorm(n)
-                    )
-                    showNotification("✅ Synthetic example data generated!",
-                        type = "message", duration = 3
-                    )
-                }
-
-                # Extract numeric variables
-                rv$numeric_vars <- names(rv$data)[sapply(rv$data, is.numeric)]
+                rv$data <- load_example_data("../../tests/testthat/College_Data")
+                rv$numeric_vars <- extract_numeric_vars(rv$data)
+                showNotification("✅ Example data loaded successfully!",
+                    type = "message", duration = 3
+                )
             },
             error = function(e) {
                 showNotification(paste("❌ Error loading example:", e$message),
@@ -73,15 +93,14 @@ function(input, output, session) {
 
         tryCatch(
             {
-                rv$data <- read.table(
+                rv$data <- load_uploaded_data(
                     input$data_file$datapath,
                     header = input$header,
-                    sep = input$sep,
-                    stringsAsFactors = FALSE
+                    sep = input$sep
                 )
 
                 # Extract numeric variables
-                rv$numeric_vars <- names(rv$data)[sapply(rv$data, is.numeric)]
+                rv$numeric_vars <- extract_numeric_vars(rv$data)
 
                 if (length(rv$numeric_vars) == 0) {
                     showNotification("⚠️ No numeric variables found in the dataset!",
@@ -119,6 +138,69 @@ function(input, output, session) {
             choices = rv$numeric_vars,
             selected = rv$numeric_vars
         )
+    })
+
+    # Algorithm-specific options (rendered dynamically)
+    output$algo_options <- renderUI({
+        req(input$algorithm)
+
+        if (input$algorithm == "kmeans") {
+            tagList(
+                numericInput("nstart",
+                    "kmeans: number of random starts (nstart):",
+                    value = 25,
+                    min = 1,
+                    max = 1000,
+                    step = 1
+                ),
+                numericInput("seed",
+                    "Optional random seed (integer, leave blank for none):",
+                    value = NA,
+                    min = NA,
+                    max = NA,
+                    step = 1
+                ),
+                numericInput("k",
+                    "Number of Clusters (k):",
+                    value = 3,
+                    min = 2,
+                    max = 10,
+                    step = 1
+                ),
+                checkboxInput("auto_k", "Auto-detect optimal k", FALSE),
+                conditionalPanel(
+                    condition = "input.auto_k == true",
+                    selectInput("k_method",
+                        "Method:",
+                        choices = c(
+                            "Silhouette" = "silhouette",
+                            "Gap Statistic" = "gap"
+                        ),
+                        selected = "silhouette"
+                    ),
+                    numericInput("max_k",
+                        "Max k to test:",
+                        value = 8,
+                        min = 3,
+                        max = 15,
+                        step = 1
+                    )
+                )
+            )
+        } else if (input$algorithm == "hac") {
+            tagList(
+                helpText("Ici mettre les options spécifiques pour HAC (par ex. linkage, cut height)"),
+                # selectInput("hac_linkage", "Linkage:", choices = c("complete","average","single"), selected = "average"),
+                # numericInput("hac_cut", "Cut height:", value = NA)
+            )
+        } else if (input$algorithm == "acm") {
+            tagList(
+                helpText("Ici mettre les options spécifiques pour ACM (par ex. affinity, thresholds)"),
+                # selectInput("acm_affinity", "Affinity:", choices = c("euclidean","cosine"), selected = "cosine")
+            )
+        } else {
+            helpText("Unknown algorithm")
+        }
     })
 
     # Data info
@@ -167,113 +249,39 @@ function(input, output, session) {
         withProgress(message = "Running clustering...", value = 0, {
             tryCatch(
                 {
-                    # Get selected data
-                    X <- rv$data[, input$selected_vars, drop = FALSE]
-
+                    X <- selected_data()
                     incProgress(0.2, detail = "Preparing data...")
 
-                    # Auto-detect optimal k if requested
-                    if (input$auto_k) {
-                        incProgress(0.3, detail = "Finding optimal k...")
+                    # Prepare algorithm-specific parameters
+                    algorithm <- if (is.null(input$algorithm)) "kmeans" else input$algorithm
+                    params <- prepare_algo_parameters(algorithm, input)
 
-                        # Prepare nstart and seed values for reproducibility / performance
-                        nstart_val <- if (!is.null(input$nstart) && !is.na(input$nstart)) as.integer(input$nstart) else 25
-                        seed_val <- if (!is.null(input$seed) && !is.na(input$seed)) as.integer(input$seed) else NULL
+                    incProgress(0.3, detail = "Running clustering workflow...")
+                    
+                    # Run clustering workflow (delegates to helper)
+                    result <- run_clustering_workflow(
+                        X,
+                        algorithm = algorithm,
+                        params = params
+                    )
 
-                        temp_model <- KMeansVariablesR6$new(
-                            method = input$method,
-                            dist_strategy = ifelse(is.null(input$dist_strategy), "pam", input$dist_strategy),
-                            nstart = nstart_val,
-                            seed = seed_val
-                        )
+                    incProgress(0.8, detail = "Storing results...")
+                    
+                    # Store results
+                    rv$model <- result$model
+                    rv$results <- result$results
+                    rv$optimal_k <- result$optimal_k
+                    rv$k_plot_data <- result$k_plot_data
 
-                        if (requireNamespace("cluster", quietly = TRUE)) {
-                            rv$optimal_k <- temp_model$suggest_k_automatic(
-                                X,
-                                max_k = input$max_k,
-                                method = input$k_method
-                            )
-
-                            # Store k selection data for plotting
-                            if (input$k_method == "silhouette") {
-                                sil_data <- numeric(input$max_k - 1)
-                                for (k in 2:input$max_k) {
-                                    temp_model$k <- k
-                                    temp_model$fit(X)
-                                    if (input$method == "correlation") {
-                                        cor_mat <- cor(scale(X))
-                                        dist_mat <- 1 - abs(cor_mat)
-                                        # Use silhouette based on the strategy used for clustering
-                                        if (is.null(input$dist_strategy) || input$dist_strategy == "pam") {
-                                            pam_res <- temp_model$model$pam
-                                            if (!is.null(pam_res)) {
-                                                sil <- cluster::silhouette(pam_res$clustering, as.dist(dist_mat))
-                                            } else {
-                                                sil <- cluster::silhouette(temp_model$model$cluster, as.dist(dist_mat))
-                                            }
-                                        } else if (input$dist_strategy == "mds") {
-                                            kdim <- min(max(2, temp_model$k), max(2, ncol(scale(X)) - 1))
-                                            coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-                                            sil <- cluster::silhouette(temp_model$model$cluster, dist(coords))
-                                        } else {
-                                            sil <- cluster::silhouette(temp_model$model$cluster, as.dist(dist_mat))
-                                        }
-                                    } else {
-                                        sil <- cluster::silhouette(temp_model$model$cluster, dist(t(scale(X))))
-                                    }
-                                    sil_data[k - 1] <- mean(sil[, 3])
-                                }
-                                rv$k_plot_data <- data.frame(
-                                    k = 2:input$max_k,
-                                    value = sil_data,
-                                    type = "Silhouette Width"
-                                )
-                            }
-
-                            updateNumericInput(session, "k", value = rv$optimal_k)
-                            k_to_use <- rv$optimal_k
-                        } else {
-                            showNotification(
-                                "⚠️ Package 'cluster' not available. Using manual k value.",
-                                type = "warning", duration = 4
-                            )
-                            k_to_use <- input$k
-                        }
-                    } else {
-                        k_to_use <- input$k
+                    # Update UI if optimal k was found
+                    if (!is.null(rv$optimal_k) && algorithm == "kmeans") {
+                        updateNumericInput(session, "k", value = rv$optimal_k)
                     }
-
-                    incProgress(0.5, detail = "Fitting model...")
-
-                    # Create and fit model (use nstart/seed from UI)
-                    nstart_val <- if (!is.null(input$nstart) && !is.na(input$nstart)) as.integer(input$nstart) else 25
-                    seed_val <- if (!is.null(input$seed) && !is.na(input$seed)) as.integer(input$seed) else NULL
-
-                    rv$model <- KMeansVariablesR6$new(
-                        k = k_to_use,
-                        method = input$method,
-                        dist_strategy = ifelse(is.null(input$dist_strategy), "pam", input$dist_strategy),
-                        nstart = nstart_val,
-                        seed = seed_val
-                    )
-
-                    rv$model$fit(X)
-
-                    incProgress(0.8, detail = "Generating results...")
-
-                    # Extract results
-                    rv$results <- list(
-                        clusters = rv$model$clusters,
-                        k = k_to_use,
-                        method = input$method,
-                        n_vars = length(input$selected_vars),
-                        model_summary = capture.output(rv$model$summary())
-                    )
 
                     incProgress(1, detail = "Done!")
 
                     showNotification(
-                        paste0("✅ Clustering completed! ", k_to_use, " clusters found."),
+                        paste0("✅ Clustering completed! (", rv$results$algorithm, ") ", rv$results$k, " clusters found."),
                         type = "message", duration = 4
                     )
 
@@ -301,7 +309,7 @@ function(input, output, session) {
             div(
                 class = "success-box",
                 h4(paste0("✅ Clustering Completed - ", rv$results$k, " Clusters")),
-                p(paste0("Method: ", toupper(rv$results$method))),
+                p(paste0("Algorithm: ", toupper(rv$results$algorithm), " — Method: ", toupper(rv$results$method))),
                 p(paste0("Variables analyzed: ", rv$results$n_vars))
             ),
             br(),
@@ -347,111 +355,25 @@ function(input, output, session) {
     # Cluster sizes barplot
     output$plot_sizes <- renderPlot({
         req(rv$results)
-
-        sizes <- sapply(rv$results$clusters, length)
-        names(sizes) <- paste0("Cluster ", seq_along(sizes))
-
-        par(mar = c(5, 5, 3, 2))
-        bp <- barplot(sizes,
-            col = hcl.colors(length(sizes), "Set 2"),
-            main = "Number of Variables per Cluster",
-            ylab = "Number of Variables",
-            xlab = "Cluster",
-            border = NA,
-            ylim = c(0, max(sizes) * 1.2)
-        )
-
-        # Add value labels
-        text(bp, sizes, labels = sizes, pos = 3, cex = 1.2, font = 2)
+        plot_cluster_sizes(rv$results$clusters)
     })
 
     # Variable distribution pie chart
     output$plot_distribution <- renderPlot({
         req(rv$results)
-
-        sizes <- sapply(rv$results$clusters, length)
-        labels <- paste0("Cluster ", seq_along(sizes), "\n(", sizes, ")")
-
-        par(mar = c(2, 2, 3, 2))
-        pie(sizes,
-            labels = labels,
-            col = hcl.colors(length(sizes), "Set 2"),
-            main = "Variable Distribution Across Clusters",
-            border = "white",
-            cex = 1.1
-        )
+        plot_cluster_distribution(rv$results$clusters)
     })
 
     # Correlation heatmap
     output$plot_heatmap <- renderPlot({
         req(rv$data, input$selected_vars, rv$model)
-
-        X <- rv$data[, input$selected_vars, drop = FALSE]
-        cor_mat <- cor(X)
-
-        # Order by clusters
-        cluster_order <- unlist(rv$results$clusters)
-        cor_mat_ordered <- cor_mat[cluster_order, cluster_order]
-
-        # Plot heatmap
-        par(mar = c(10, 10, 4, 2))
-        image(seq_len(ncol(cor_mat_ordered)),
-            seq_len(nrow(cor_mat_ordered)),
-            t(cor_mat_ordered[rev(seq_len(nrow(cor_mat_ordered))), ]),
-            col = hcl.colors(50, "RdBu", rev = TRUE),
-            xlab = "", ylab = "",
-            main = "Correlation Matrix (ordered by clusters)",
-            axes = FALSE
-        )
-
-        axis(1,
-            at = seq_len(ncol(cor_mat_ordered)),
-            labels = colnames(cor_mat_ordered),
-            las = 2, cex.axis = 0.8
-        )
-        axis(2,
-            at = seq_len(nrow(cor_mat_ordered)),
-            labels = rev(rownames(cor_mat_ordered)),
-            las = 2, cex.axis = 0.8
-        )
-
-        # Add cluster boundaries
-        cum_sizes <- cumsum(sapply(rv$results$clusters, length))
-        for (i in seq_along(cum_sizes)[-length(cum_sizes)]) {
-            abline(v = cum_sizes[i] + 0.5, col = "black", lwd = 2)
-            abline(
-                h = nrow(cor_mat_ordered) - cum_sizes[i] + 0.5,
-                col = "black", lwd = 2
-            )
-        }
+        plot_correlation_heatmap(rv$data, rv$results$clusters, input$selected_vars)
     })
 
     # K selection plot
     output$plot_k_selection <- renderPlot({
         req(rv$k_plot_data)
-
-        par(mar = c(5, 5, 3, 2))
-        plot(rv$k_plot_data$k, rv$k_plot_data$value,
-            type = "b", pch = 19, col = "#667eea",
-            lwd = 2, cex = 1.5,
-            xlab = "Number of Clusters (k)",
-            ylab = rv$k_plot_data$type[1],
-            main = paste("Optimal k Selection -", rv$k_plot_data$type[1]),
-            xaxt = "n"
-        )
-
-        axis(1, at = rv$k_plot_data$k)
-        grid(col = "gray80")
-
-        # Highlight optimal k
-        if (!is.null(rv$optimal_k)) {
-            abline(v = rv$optimal_k, col = "red", lty = 2, lwd = 2)
-            yval <- rv$k_plot_data$value[rv$k_plot_data$k == rv$optimal_k]
-            if (length(yval) == 1 && !is.na(yval)) {
-                points(rv$optimal_k, yval, col = "red", pch = 19, cex = 2)
-                text(rv$optimal_k, par("usr")[4] * 0.95, paste("Optimal k =", rv$optimal_k), col = "red", font = 2)
-            }
-        }
+        plot_k_selection(rv$k_plot_data, rv$optimal_k)
     })
 
     # =========================================================================
@@ -463,26 +385,13 @@ function(input, output, session) {
 
         tryCatch(
             {
-                # Load prediction data
-                pred_data <- read.table(
+                # Run prediction workflow (delegates to helper)
+                predictions <- run_prediction_workflow(
+                    rv$model,
                     input$predict_file$datapath,
                     header = input$header,
-                    sep = input$sep,
-                    stringsAsFactors = FALSE
+                    sep = input$sep
                 )
-
-                # Get numeric variables
-                pred_numeric <- pred_data[, sapply(pred_data, is.numeric), drop = FALSE]
-
-                if (ncol(pred_numeric) == 0) {
-                    showNotification("⚠️ No numeric variables in prediction file!",
-                        type = "warning"
-                    )
-                    return()
-                }
-
-                # Make predictions
-                predictions <- rv$model$predict(pred_numeric)
 
                 # Display results
                 output$prediction_results <- renderUI({

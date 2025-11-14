@@ -10,53 +10,16 @@ library(shinyjs)
 fluidPage(
     # Enable shinyjs for dynamic UI updates
     useShinyjs(),
-
-    # Custom CSS
+    # Custom CSS (external file)
     tags$head(
-        tags$style(HTML("
-            .main-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 20px;
-                border-radius: 5px;
-                margin-bottom: 20px;
-            }
-            .info-box {
-                background-color: #f8f9fa;
-                border-left: 4px solid #667eea;
-                padding: 15px;
-                margin: 10px 0;
-                border-radius: 4px;
-            }
-            .success-box {
-                background-color: #d4edda;
-                border-left: 4px solid #28a745;
-                padding: 15px;
-                margin: 10px 0;
-                border-radius: 4px;
-            }
-            .error-box {
-                background-color: #f8d7da;
-                border-left: 4px solid #dc3545;
-                padding: 15px;
-                margin: 10px 0;
-                border-radius: 4px;
-            }
-            .cluster-label {
-                font-weight: bold;
-                padding: 5px 10px;
-                border-radius: 3px;
-                display: inline-block;
-                margin: 2px;
-            }
-        "))
+        includeCSS("www/style.css")
     ),
 
     # Application header
     div(
         class = "main-header",
-        h1("📊 Variable Clustering with K-Means"),
-        p("Interactive tool for clustering variables based on correlation or euclidean distance")
+        h1("📊 Variable Clustering"),
+        p("Interactive tool for clustering variables using different algorithms")
     ),
 
     # Sidebar layout
@@ -97,6 +60,15 @@ fluidPage(
 
             # Step 3: Clustering Parameters
             h4("3️⃣ Clustering Settings"),
+            selectInput("algorithm",
+                "Algorithm:",
+                choices = c(
+                    "K-Means" = "kmeans",
+                    "HAC" = "hac",
+                    "ACM" = "acm"
+                ),
+                selected = "kmeans"
+            ),
             selectInput("method",
                 "Distance Method:",
                 choices = c(
@@ -113,46 +85,8 @@ fluidPage(
                     selected = "pam"
                 )
             ),
-            numericInput("nstart",
-                "kmeans: number of random starts (nstart):",
-                value = 25,
-                min = 1,
-                max = 1000,
-                step = 1
-            ),
-            numericInput("seed",
-                "Optional random seed (integer, leave blank for none):",
-                value = NA,
-                min = NA,
-                max = NA,
-                step = 1
-            ),
-            numericInput("k",
-                "Number of Clusters (k):",
-                value = 3,
-                min = 2,
-                max = 10,
-                step = 1
-            ),
-            checkboxInput("auto_k", "Auto-detect optimal k", FALSE),
-            conditionalPanel(
-                condition = "input.auto_k == true",
-                selectInput("k_method",
-                    "Method:",
-                    choices = c(
-                        "Silhouette" = "silhouette",
-                        "Gap Statistic" = "gap"
-                    ),
-                    selected = "silhouette"
-                ),
-                numericInput("max_k",
-                    "Max k to test:",
-                    value = 8,
-                    min = 3,
-                    max = 15,
-                    step = 1
-                )
-            ),
+            # Algorithm-specific options rendered from server
+            uiOutput("algo_options"),
             hr(),
 
             # Action Buttons
