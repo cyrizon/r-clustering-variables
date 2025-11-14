@@ -1,5 +1,4 @@
-library(R6)
-library(FactoMineR)
+# Classe R6 pour le clustering de variables catégorielles via ACM
 
 # --- Fonction utilitaire : calcul du η² (rapport de corrélation)
 eta2_manual <- function(fac, z) {

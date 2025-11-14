@@ -1,0 +1,36 @@
+/* App styles extracted from ui.R */
+.main-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+.info-box {
+    background-color: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+.success-box {
+    background-color: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+.error-box {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+.cluster-label {
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 3px;
+    display: inline-block;
+    margin: 2px;
+}
