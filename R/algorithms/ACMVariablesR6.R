@@ -37,7 +37,6 @@ ClustVarACM <- R6::R6Class(
       self$K <- K
       self$max_iter <- max_iter
       self$tol <- tol
-      self$verbose <- verbose
       self$clusters <- sample(1:K, ncol(data), replace = TRUE)
     },
 
@@ -141,8 +140,7 @@ ClustVarACM <- R6::R6Class(
     select_K = function(K_grid = 2:6, threshold = 0.1) {
       results <- data.frame(K = K_grid, Q = NA)
       for (i in seq_along(K_grid)) {
-        if (self$verbose) cat("Test de K =", K_grid[i], "\n")
-        tmp <- ClustVarACM$new(data = self$data, K = K_grid[i], verbose = FALSE)
+        tmp <- ClustVarACM$new(data = self$data, K = K_grid[i])
         tmp$fit()
         results$Q[i] <- tmp$Q_final
       }
