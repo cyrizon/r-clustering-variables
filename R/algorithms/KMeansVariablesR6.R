@@ -464,6 +464,41 @@ KMeansVariablesR6 <- R6::R6Class(
     },
 
     #' @description
+    #' Automatically suggest optimal k using elbow method with relative gain threshold
+    #' @param X A data.frame or matrix with numeric variables
+    #' @param max_k Maximum number of clusters to test (default: 10)
+    #' @param threshold Relative gain threshold (default: 0.1 = 10%)
+    #' @param plot Whether to plot the results (default: TRUE)
+    #' @return List with results data.frame and optimal k
+    suggest_k_elbow = function(X, max_k = 10, threshold = 0.1, plot = TRUE) {
+      # Get WSS values
+      wss <- self$suggest_k(X, max_k = max_k, plot = FALSE)
+      
+      # Create results data frame
+      results <- data.frame(k = 1:max_k, wss = wss)
+      
+      # Calculate successive differences and relative gains
+      dwss <- -diff(results$wss)  # Negative diff because WSS decreases
+      rel_gain <- dwss / max(dwss)  # Normalize by max gain
+      
+      # Find optimal k where relative gain drops below threshold
+      k_opt <- results$k[which(rel_gain < threshold)[1] + 1]
+      if (is.na(k_opt)) k_opt <- results$k[which.max(dwss) + 1]
+      
+      # Visualization
+      if (plot) {
+        plot(results$k, results$wss, type = "b", pch = 19, col = "blue",
+             xlab = "Number of clusters (k)", ylab = "Within-cluster sum of squares",
+             main = "Elbow method for optimal k selection")
+        abline(v = k_opt, col = "red", lty = 2)
+        text(k_opt, max(results$wss), labels = paste("k* =", k_opt), pos = 4, col = "red")
+      }
+      
+      message(sprintf("\u2713 Optimal k selected automatically: %d (threshold %.0f%%)", k_opt, threshold * 100))
+      return(list(results = results, k_opt = k_opt))
+    },
+
+    #' @description
     #' Automatically suggest optimal k using statistical methods
     #' @param X A data.frame or matrix with numeric variables
     #' @param max_k Maximum number of clusters to test (default: 10)

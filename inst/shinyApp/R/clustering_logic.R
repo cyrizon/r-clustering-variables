@@ -37,7 +37,26 @@ run_clustering_workflow <- function(X, algorithm = "kmeans", params = list()) {
       )
     )
     
-    if (requireNamespace("cluster", quietly = TRUE)) {
+    if (k_method == "elbow") {
+      # Elbow method (no cluster package required)
+      elbow_threshold <- if (!is.null(params$elbow_threshold)) params$elbow_threshold else 0.1
+      result <- temp_model$suggest_k_elbow(
+        X,
+        max_k = max_k,
+        threshold = elbow_threshold,
+        plot = FALSE
+      )
+      optimal_k <- result$k_opt
+      
+      # Generate plot data for elbow method
+      k_plot_data <- data.frame(
+        k = result$results$k,
+        value = result$results$wss,
+        type = "Within-cluster SS"
+      )
+      
+      k_to_use <- optimal_k
+    } else if (requireNamespace("cluster", quietly = TRUE)) {
       optimal_k <- temp_model$suggest_k_automatic(
         X,
         max_k = max_k,

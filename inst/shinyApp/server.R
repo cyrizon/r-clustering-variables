@@ -174,7 +174,8 @@ function(input, output, session) {
                         "Method:",
                         choices = c(
                             "Silhouette" = "silhouette",
-                            "Gap Statistic" = "gap"
+                            "Gap Statistic" = "gap",
+                            "Elbow (simple)" = "elbow"
                         ),
                         selected = "silhouette"
                     ),
@@ -184,6 +185,16 @@ function(input, output, session) {
                         min = 3,
                         max = 15,
                         step = 1
+                    ),
+                    conditionalPanel(
+                        condition = "input.k_method == 'elbow'",
+                        numericInput("elbow_threshold",
+                            "Relative gain threshold (0-1):",
+                            value = 0.1,
+                            min = 0.01,
+                            max = 0.5,
+                            step = 0.01
+                        )
                     )
                 )
             )

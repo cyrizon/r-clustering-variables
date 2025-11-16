@@ -87,12 +87,16 @@ plot_correlation_heatmap <- function(data, clusters, selected_vars) {
   }
 }
 
-#' Plot k selection metric (silhouette or gap statistic)
+#' Plot k selection metric (silhouette, gap statistic, or elbow)
 #' @param k_plot_data data.frame with columns k, value, type
 #' @param optimal_k Integer optimal k value (optional)
 #' @return NULL (side effect: creates plot)
 plot_k_selection <- function(k_plot_data, optimal_k = NULL) {
   par(mar = c(5, 5, 3, 2))
+  
+  # Determine if this is an elbow plot (decreasing values)
+  is_elbow <- k_plot_data$type[1] == "Within-cluster SS"
+  
   plot(k_plot_data$k, k_plot_data$value,
     type = "b", pch = 19, col = "#667eea",
     lwd = 2, cex = 1.5,
@@ -111,7 +115,19 @@ plot_k_selection <- function(k_plot_data, optimal_k = NULL) {
     yval <- k_plot_data$value[k_plot_data$k == optimal_k]
     if (length(yval) == 1 && !is.na(yval)) {
       points(optimal_k, yval, col = "red", pch = 19, cex = 2)
-      text(optimal_k, par("usr")[4] * 0.95, paste("Optimal k =", optimal_k), col = "red", font = 2)
+      
+      # Position label based on plot type
+      if (is_elbow) {
+        # For elbow plot, put label at top
+        text(optimal_k, par("usr")[4] * 0.95, 
+             paste("k* =", optimal_k), 
+             col = "red", font = 2, pos = 4)
+      } else {
+        # For silhouette/gap, put label at top
+        text(optimal_k, par("usr")[4] * 0.95, 
+             paste("Optimal k =", optimal_k), 
+             col = "red", font = 2)
+      }
     }
   }
 }

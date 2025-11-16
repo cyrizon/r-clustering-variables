@@ -22,6 +22,7 @@ prepare_algo_parameters <- function(algorithm, input) {
     params$auto_k <- if (!is.null(input$auto_k)) input$auto_k else FALSE
     params$k_method <- if (!is.null(input$k_method)) input$k_method else "silhouette"
     params$max_k <- if (!is.null(input$max_k)) input$max_k else 8
+    params$elbow_threshold <- if (!is.null(input$elbow_threshold)) input$elbow_threshold else 0.1
     
   } else if (algorithm == "hac") {
     # Ici mettre les options spécifiques pour HAC
