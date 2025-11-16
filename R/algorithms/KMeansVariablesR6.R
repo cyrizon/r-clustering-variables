@@ -414,7 +414,7 @@ KMeansVariablesR6 <- R6::R6Class(
         dist_mat <- 1 - abs(cor_mat)
         if (self$dist_strategy == "mds") {
           # Embed distances via MDS then compute WSS on coordinates
-          kdim <- min(max(2, self$k), max(2, ncol(X_norm) - 1))
+          kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
           coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
           for (k in 1:max_k) {
             km <- kmeans(coords, centers = k, nstart = self$nstart)
@@ -501,7 +501,7 @@ KMeansVariablesR6 <- R6::R6Class(
           dist_mat <- 1 - abs(cor_mat)
 
           if (self$dist_strategy == "mds") {
-            kdim <- min(max(2, self$k), max(2, ncol(X_norm) - 1))
+            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
             coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
             for (k in 2:max_k) {
               km <- kmeans(coords, centers = k, nstart = self$nstart)
@@ -555,7 +555,7 @@ KMeansVariablesR6 <- R6::R6Class(
           dist_mat <- 1 - abs(cor_mat)
 
           if (self$dist_strategy == "mds") {
-            kdim <- min(max(2, self$k), max(2, ncol(X_norm) - 1))
+            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
             coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
             gap_stat <- cluster::clusGap(coords,
               FUN = function(x, k) kmeans(x, centers = k, nstart = 25),
@@ -563,7 +563,7 @@ KMeansVariablesR6 <- R6::R6Class(
             )
           } else if (self$dist_strategy == "pam") {
             # PAM does not directly accept clusGap; approximate via MDS embedding
-            kdim <- min(max(2, self$k), max(2, ncol(X_norm) - 1))
+            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
             coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
             gap_stat <- cluster::clusGap(coords,
               FUN = function(x, k) kmeans(x, centers = k, nstart = 25),
