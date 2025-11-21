@@ -146,20 +146,6 @@ function(input, output, session) {
 
         if (input$algorithm == "kmeans") {
             tagList(
-                numericInput("nstart",
-                    "kmeans: number of random starts (nstart):",
-                    value = 25,
-                    min = 1,
-                    max = 1000,
-                    step = 1
-                ),
-                numericInput("seed",
-                    "Optional random seed (integer, leave blank for none):",
-                    value = NA,
-                    min = NA,
-                    max = NA,
-                    step = 1
-                ),
                 numericInput("k",
                     "Number of Clusters (k):",
                     value = 3,
@@ -171,32 +157,30 @@ function(input, output, session) {
                 conditionalPanel(
                     condition = "input.auto_k == true",
                     selectInput("k_method",
-                        "Method:",
+                        "Auto-detection method:",
                         choices = c(
+                            "Elbow (curvature)" = "elbow",
                             "Silhouette" = "silhouette",
-                            "Gap Statistic" = "gap",
-                            "Elbow (simple)" = "elbow"
+                            "Gap Statistic" = "gap"
                         ),
-                        selected = "silhouette"
+                        selected = "elbow"
                     ),
                     numericInput("max_k",
                         "Max k to test:",
-                        value = 8,
+                        value = 10,
                         min = 3,
-                        max = 15,
+                        max = 20,
                         step = 1
-                    ),
-                    conditionalPanel(
-                        condition = "input.k_method == 'elbow'",
-                        numericInput("elbow_threshold",
-                            "Relative gain threshold (0-1):",
-                            value = 0.1,
-                            min = 0.01,
-                            max = 0.5,
-                            step = 0.01
-                        )
                     )
-                )
+                ),
+                numericInput("seed",
+                    "Random seed (optional):",
+                    value = NA,
+                    min = NA,
+                    max = NA,
+                    step = 1
+                ),
+                helpText("📝 Simple k-means with medoid centers and elbow method for optimal k selection")
             )
         } else if (input$algorithm == "hac") {
             tagList(

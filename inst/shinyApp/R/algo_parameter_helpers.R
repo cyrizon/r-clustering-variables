@@ -10,19 +10,16 @@
 prepare_algo_parameters <- function(algorithm, input) {
   # Common parameters across all algorithms
   params <- list(
-    method = input$method,
-    dist_strategy = if (!is.null(input$dist_strategy)) input$dist_strategy else "pam"
+    method = input$method
   )
   
   # Algorithm-specific parameters
   if (algorithm == "kmeans") {
     params$k <- if (!is.null(input$k)) input$k else 3
-    params$nstart <- if (!is.null(input$nstart) && !is.na(input$nstart)) as.integer(input$nstart) else 25
     params$seed <- if (!is.null(input$seed) && !is.na(input$seed)) as.integer(input$seed) else NULL
     params$auto_k <- if (!is.null(input$auto_k)) input$auto_k else FALSE
-    params$k_method <- if (!is.null(input$k_method)) input$k_method else "silhouette"
-    params$max_k <- if (!is.null(input$max_k)) input$max_k else 8
-    params$elbow_threshold <- if (!is.null(input$elbow_threshold)) input$elbow_threshold else 0.1
+    params$k_method <- if (!is.null(input$k_method)) input$k_method else "elbow"
+    params$max_k <- if (!is.null(input$max_k)) input$max_k else 10
     
   } else if (algorithm == "hac") {
     # Ici mettre les options spécifiques pour HAC

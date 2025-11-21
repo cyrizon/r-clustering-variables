@@ -31,10 +31,6 @@ KMeansVariablesR6 <- R6::R6Class(
     scale_scale = NULL,
     #' @field seed Optional seed for reproducibility
     seed = NULL,
-    #' @field dist_strategy Kept for compatibility (ignored in simple version)
-    dist_strategy = NULL,
-    #' @field nstart Kept for compatibility (ignored in simple version)
-    nstart = 25,
 
     #' @description
     #' Create a new KMeansVariablesR6 object
@@ -46,16 +42,11 @@ KMeansVariablesR6 <- R6::R6Class(
     initialize = function(k = 3,
                           method = c("correlation", "euclidean"),
                           max_iter = 100,
-                          dist_strategy = NULL,
-                          nstart = 25,
                           seed = NULL) {
       self$k <- k
       self$method <- match.arg(method)
       self$max_iter <- max_iter
       self$seed <- if (!is.null(seed)) as.integer(seed) else NULL
-      # Keep for compatibility but not used in simple version
-      self$dist_strategy <- if (!is.null(dist_strategy)) dist_strategy else "medoid"
-      self$nstart <- nstart
     },
 
     #' @description
@@ -325,14 +316,14 @@ KMeansVariablesR6 <- R6::R6Class(
       cat("=== KMeansVariablesR6 Summary ===\n")
       cat("Number of clusters:", self$k, "\n")
       cat("Distance method:", self$method, "\n")
-      
+
       if (self$fitted) {
         cat("\nCluster sizes:\n")
         print(sapply(self$clusters, length))
-        
+
         cat("\nVariables per cluster:\n")
         print(self$clusters)
-        
+
         cat("\nCenter variables (medoids):\n")
         center_vars <- self$get_center_variables()
         print(data.frame(
@@ -340,7 +331,7 @@ KMeansVariablesR6 <- R6::R6Class(
           center_variable = center_vars,
           stringsAsFactors = FALSE
         ))
-        
+
         cat("\nTotal inertia:", round(self$inertia, 3), "\n")
       } else {
         cat("Model not fitted yet.\n")
@@ -373,14 +364,14 @@ KMeansVariablesR6 <- R6::R6Class(
       if (anyNA(X)) {
         stop("Data must not contain missing values (NA).")
       }
-      
+
       n_vars <- ncol(X)
       k_max <- min(k_max, n_vars - 1)
       if (k_max < 2) stop("Not enough variables to run elbow method.")
-      
+
       # === 2. NORMALIZE DATA ===
       X_norm <- scale(X)
-      
+
       # === 3. CALCULATE DISTANCE MATRIX ===
       if (self$method == "correlation") {
         cor_matrix <- cor(X_norm)
@@ -388,56 +379,60 @@ KMeansVariablesR6 <- R6::R6Class(
       } else {
         dist_matrix <- as.matrix(dist(t(X_norm)))
       }
-      
+
       # === 4. COMPUTE INERTIA FOR EACH k ===
       inertias <- numeric(k_max)
-      
+
       for (k in 1:k_max) {
         # Run simple k-means for this k
         if (!is.null(self$seed)) set.seed(self$seed)
         centers_idx <- sample(seq_len(n_vars), k, replace = FALSE)
-        
+
         # Assignment step (simplified, single iteration for speed)
         cluster_assignment <- sapply(seq_len(n_vars), function(i) {
           distances <- sapply(centers_idx, function(c) dist_matrix[i, c])
           which.min(distances)
         })
-        
+
         # Calculate inertia
         inertias[k] <- sum(sapply(1:k, function(c) {
           vars_idx <- which(cluster_assignment == c)
-          if (length(vars_idx) <= 1) return(0)
+          if (length(vars_idx) <= 1) {
+            return(0)
+          }
           center_idx <- centers_idx[c]
           sum(dist_matrix[vars_idx, center_idx]^2)
         }))
       }
-      
+
       # === 5. DETECT ELBOW VIA CURVATURE ===
       # Normalize inertias to [0, 1]
       inertias_norm <- (inertias - min(inertias)) / (max(inertias) - min(inertias))
-      
+
       # Calculate curvature (second derivative approximation)
       curvature <- numeric(k_max - 2)
       for (i in 2:(k_max - 1)) {
         curvature[i - 1] <- inertias_norm[i - 1] - 2 * inertias_norm[i] + inertias_norm[i + 1]
       }
-      
+
       # Optimal k is where curvature is maximum (sharpest bend)
       k_optimal <- which.max(curvature) + 1
-      
+
       # === 6. VISUALIZATION ===
       if (plot) {
         plot(1:k_max, inertias,
-             type = "b", pch = 19, col = "steelblue",
-             xlab = "Number of clusters (k)",
-             ylab = "Inertia (within-cluster sum of squares)",
-             main = "Elbow Method for Optimal k Selection")
+          type = "b", pch = 19, col = "steelblue",
+          xlab = "Number of clusters (k)",
+          ylab = "Inertia (within-cluster sum of squares)",
+          main = "Elbow Method for Optimal k Selection"
+        )
         abline(v = k_optimal, col = "red", lty = 2, lwd = 2)
         text(k_optimal, max(inertias) * 0.9,
-             labels = paste("Optimal k =", k_optimal),
-             pos = 4, col = "red", font = 2)
+          labels = paste("Optimal k =", k_optimal),
+          pos = 4, col = "red", font = 2
+        )
       }
-      
+
       message(sprintf("✓ Elbow method selected k = %d", k_optimal))
       return(k_optimal)
     },

@@ -77,14 +77,6 @@ fluidPage(
                 ),
                 selected = "correlation"
             ),
-            conditionalPanel(
-                condition = "input.method == 'correlation'",
-                selectInput("dist_strategy",
-                    "Correlation strategy:",
-                    choices = c("PAM (partitioning around medoids)" = "pam", "MDS + kmeans" = "mds"),
-                    selected = "pam"
-                )
-            ),
             # Algorithm-specific options rendered from server
             uiOutput("algo_options"),
             hr(),
