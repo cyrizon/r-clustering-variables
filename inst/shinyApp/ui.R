@@ -39,13 +39,17 @@ fluidPage(
                 placeholder = "No file selected"
             ),
             checkboxInput("header", "File has header", TRUE),
-            radioButtons("sep", "Separator:",
-                choices = c(
-                    "Comma" = ",",
-                    "Semicolon" = ";",
-                    "Tab" = "\t"
-                ),
-                selected = ","
+            checkboxInput("auto_sep", "Auto-detect separator", TRUE),
+            conditionalPanel(
+                condition = "input.auto_sep == false",
+                radioButtons("sep", "Separator:",
+                    choices = c(
+                        "Comma" = ",",
+                        "Semicolon" = ";",
+                        "Tab" = "\t"
+                    ),
+                    selected = ","
+                )
             ),
             actionButton("load_example", "📂 Load Example Data",
                 class = "btn-info btn-sm",

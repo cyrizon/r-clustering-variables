@@ -93,10 +93,13 @@ function(input, output, session) {
 
         tryCatch(
             {
+                # Use auto-detect if enabled, otherwise use manual selection
+                sep_to_use <- if (input$auto_sep) NULL else input$sep
+
                 rv$data <- load_uploaded_data(
                     input$data_file$datapath,
                     header = input$header,
-                    sep = input$sep
+                    sep = sep_to_use
                 )
 
                 # Extract numeric variables
