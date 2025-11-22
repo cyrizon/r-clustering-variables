@@ -3,6 +3,7 @@ create_model <- function(algorithm = "kmeans", params = list()) {
   alg <- if (is.null(algorithm)) "kmeans" else algorithm
   method <- if (!is.null(params$method)) params$method else NULL
   k <- if (!is.null(params$k)) params$k else NULL
+  nstart <- if (!is.null(params$nstart)) params$nstart else 10
   seed <- if (!is.null(params$seed)) params$seed else NULL
 
   if (alg == "kmeans") {
@@ -12,6 +13,7 @@ create_model <- function(algorithm = "kmeans", params = list()) {
     return(KMeansVariablesR6$new(
       k = k,
       method = method,
+      nstart = nstart,
       seed = seed
     ))
   }

@@ -31,6 +31,8 @@ KMeansVariablesR6 <- R6::R6Class(
     scale_scale = NULL,
     #' @field seed Optional seed for reproducibility
     seed = NULL,
+    #' @field nstart Number of random starts (default: 10)
+    nstart = 10,
 
     #' @description
     #' Create a new KMeansVariablesR6 object
@@ -42,10 +44,12 @@ KMeansVariablesR6 <- R6::R6Class(
     initialize = function(k = 3,
                           method = c("correlation", "euclidean"),
                           max_iter = 100,
+                          nstart = 10,
                           seed = NULL) {
       self$k <- k
       self$method <- match.arg(method)
       self$max_iter <- max_iter
+      self$nstart <- nstart
       self$seed <- if (!is.null(seed)) as.integer(seed) else NULL
     },
 
@@ -97,83 +101,120 @@ KMeansVariablesR6 <- R6::R6Class(
         dist_matrix <- as.matrix(dist(t(X_norm)))
       }
 
-      # === 4. INITIALISATION DES CENTRES (k random variables) ===
-      # Choose k random variables as initial centers
-      if (!is.null(self$seed)) set.seed(self$seed)
-      initial_centers_idx <- sample(seq_len(n_vars), self$k, replace = FALSE)
-      current_centers_idx <- initial_centers_idx
+      # === 4. MULTI-STARTS FOR STABILITY ===
+      best_inertia <- Inf
+      best_centers <- NULL
+      best_clusters <- NULL
 
-      # === 5. ALGORITHME K-MEANS (LLOYD) ===
-      converged <- FALSE
-      iter <- 0
-      cluster_assignment <- rep(0, n_vars)
+      for (start_run in 1:self$nstart) {
+        # Different seed for each start
+        if (!is.null(self$seed)) set.seed(self$seed + start_run * 1000)
 
-      while (!converged && iter < self$max_iter) {
-        iter <- iter + 1
-        old_assignment <- cluster_assignment
+        # First center: random
+        initial_centers_idx <- numeric(self$k)
+        initial_centers_idx[1] <- sample(n_vars, 1)
 
-        # --- STEP A: ASSIGNMENT ---
-        # Assign each variable to the nearest center
-        for (i in seq_len(n_vars)) {
-          # Calculate distance from variable i to each center
-          distances_to_centers <- sapply(seq_len(self$k), function(c) {
-            center_idx <- current_centers_idx[c]
-            dist_matrix[i, center_idx]
-          })
-          # Assign to cluster of nearest center
-          cluster_assignment[i] <- which.min(distances_to_centers)
+        # Subsequent centers: probability proportional to D²
+        for (i in 2:self$k) {
+          # Minimum distance of each variable to already chosen centers
+          min_dists <- apply(dist_matrix[, initial_centers_idx[1:(i - 1)], drop = FALSE], 1, min)
+
+          # Probabilities proportional to D²
+          probs <- min_dists^2
+          probs[initial_centers_idx[1:(i - 1)]] <- 0 # Avoid re-selecting a center
+
+          # Handle edge case where all probs are 0
+          if (sum(probs) == 0) {
+            remaining <- setdiff(1:n_vars, initial_centers_idx[1:(i - 1)])
+            initial_centers_idx[i] <- sample(remaining, 1)
+          } else {
+            probs <- probs / sum(probs)
+            initial_centers_idx[i] <- sample(n_vars, 1, prob = probs)
+          }
         }
 
-        # --- STEP B: UPDATE CENTERS ---
-        # Recalculate center of each cluster (medoid = most central variable)
-        new_centers_idx <- sapply(seq_len(self$k), function(c) {
-          # Variables belonging to cluster c
-          vars_in_cluster <- which(cluster_assignment == c)
+        current_centers_idx <- initial_centers_idx
 
-          if (length(vars_in_cluster) == 0) {
-            # Empty cluster: keep old center or reinitialize randomly
-            warning(paste("Cluster", c, "is empty at iteration", iter))
-            return(current_centers_idx[c])
+        # === 5. ALGORITHME K-MEANS (LLOYD) ===
+        converged <- FALSE
+        iter <- 0
+        cluster_assignment <- rep(0, n_vars)
+
+        while (!converged && iter < self$max_iter) {
+          iter <- iter + 1
+          old_assignment <- cluster_assignment
+
+          # --- STEP A: ASSIGNMENT ---
+          # Assign each variable to the nearest center
+          for (i in seq_len(n_vars)) {
+            # Calculate distance from variable i to each center
+            distances_to_centers <- sapply(seq_len(self$k), function(c) {
+              center_idx <- current_centers_idx[c]
+              dist_matrix[i, center_idx]
+            })
+            # Assign to cluster of nearest center
+            cluster_assignment[i] <- which.min(distances_to_centers)
           }
 
-          if (length(vars_in_cluster) == 1) {
-            # Single member: it becomes the center
-            return(vars_in_cluster[1])
+          # --- STEP B: UPDATE CENTERS ---
+          # Recalculate center of each cluster (medoid = most central variable)
+          new_centers_idx <- sapply(seq_len(self$k), function(c) {
+            # Variables belonging to cluster c
+            vars_in_cluster <- which(cluster_assignment == c)
+
+            if (length(vars_in_cluster) == 0) {
+              # Empty cluster: keep old center or reinitialize randomly
+              warning(paste("Cluster", c, "is empty at iteration", iter))
+              return(current_centers_idx[c])
+            }
+
+            if (length(vars_in_cluster) == 1) {
+              # Single member: it becomes the center
+              return(vars_in_cluster[1])
+            }
+
+            # Calculate the "medoid" variable: one that minimizes average distance to other members
+            avg_distances <- sapply(vars_in_cluster, function(candidate) {
+              mean(dist_matrix[candidate, vars_in_cluster])
+            })
+            vars_in_cluster[which.min(avg_distances)]
+          })
+
+          # --- CHECK CONVERGENCE ---
+          # If assignments don't change, we've converged
+          if (all(cluster_assignment == old_assignment)) {
+            converged <- TRUE
           }
 
-          # Calculate the "medoid" variable: one that minimizes average distance to other members
-          avg_distances <- sapply(vars_in_cluster, function(candidate) {
-            mean(dist_matrix[candidate, vars_in_cluster])
-          })
-          vars_in_cluster[which.min(avg_distances)]
-        })
-
-        # --- CHECK CONVERGENCE ---
-        # If assignments don't change, we've converged
-        if (all(cluster_assignment == old_assignment)) {
-          converged <- TRUE
+          current_centers_idx <- new_centers_idx
         }
 
-        current_centers_idx <- new_centers_idx
-      }
+        # Calculate inertia for this run
+        run_inertia <- sum(sapply(seq_len(self$k), function(c) {
+          vars_idx <- which(cluster_assignment == c)
+          if (length(vars_idx) <= 1) {
+            return(0)
+          }
+          center_idx <- current_centers_idx[c]
+          sum(dist_matrix[vars_idx, center_idx]^2)
+        }))
 
-      # === 6. STORE RESULTS ===
-      names(cluster_assignment) <- var_names
-      self$clusters <- split(names(cluster_assignment), cluster_assignment)
-      self$centers <- current_centers_idx # Indices of center variables
-
-      # Calculate total inertia (sum of squared distances within clusters)
-      self$inertia <- sum(sapply(seq_len(self$k), function(c) {
-        vars_idx <- which(cluster_assignment == c)
-        if (length(vars_idx) <= 1) {
-          return(0)
+        # Keep best result
+        if (run_inertia < best_inertia) {
+          best_inertia <- run_inertia
+          best_centers <- current_centers_idx
+          names(cluster_assignment) <- var_names
+          best_clusters <- split(names(cluster_assignment), cluster_assignment)
         }
-        center_idx <- current_centers_idx[c]
-        sum(dist_matrix[vars_idx, center_idx]^2)
-      }))
+      } # End multi-starts loop
+
+      # === 6. STORE BEST RESULTS ===
+      self$clusters <- best_clusters
+      self$centers <- best_centers
+      self$inertia <- best_inertia
 
       self$fitted <- TRUE
-      message(sprintf("\u2713 Converged in %d iterations | Inertia: %.3f", iter, self$inertia))
+      message(sprintf("\u2713 Best of %d starts | Inertia: %.3f", self$nstart, self$inertia))
       invisible(self)
     },
 
@@ -348,12 +389,13 @@ KMeansVariablesR6 <- R6::R6Class(
     },
 
     #' @description
-    #' Elbow method: automatically determine optimal k using curvature detection
+    #' Elbow method: automatically determine optimal k using distance-to-line method
     #' @param X A data.frame or matrix with numeric variables
+    #' @param k_min Minimum number of clusters to test (default: 2)
     #' @param k_max Maximum number of clusters to test (default: 10)
     #' @param plot Whether to plot the elbow curve (default: TRUE)
     #' @return Optimal number of clusters
-    elbow_method = function(X, k_max = 10, plot = TRUE) {
+    elbow_method = function(X, k_min = 2, k_max = 10, plot = TRUE) {
       # === 1. VALIDATION ===
       if (!is.data.frame(X) && !is.matrix(X)) {
         stop("X must be a data.frame or matrix.")
@@ -367,7 +409,8 @@ KMeansVariablesR6 <- R6::R6Class(
 
       n_vars <- ncol(X)
       k_max <- min(k_max, n_vars - 1)
-      if (k_max < 2) stop("Not enough variables to run elbow method.")
+      k_min <- max(k_min, 2)
+      if (k_max < k_min) stop("Not enough variables to run elbow method.")
 
       # === 2. NORMALIZE DATA ===
       X_norm <- scale(X)
@@ -380,22 +423,68 @@ KMeansVariablesR6 <- R6::R6Class(
         dist_matrix <- as.matrix(dist(t(X_norm)))
       }
 
-      # === 4. COMPUTE INERTIA FOR EACH k ===
-      inertias <- numeric(k_max)
+      # === 4. COMPUTE INERTIA FOR EACH k (starting from k_min, not k=1) ===
+      k_range <- k_min:k_max
+      inertias <- numeric(length(k_range))
 
-      for (k in 1:k_max) {
-        # Run simple k-means for this k
-        if (!is.null(self$seed)) set.seed(self$seed)
-        centers_idx <- sample(seq_len(n_vars), k, replace = FALSE)
+      for (i in seq_along(k_range)) {
+        k <- k_range[i]
 
-        # Assignment step (simplified, single iteration for speed)
-        cluster_assignment <- sapply(seq_len(n_vars), function(i) {
-          distances <- sapply(centers_idx, function(c) dist_matrix[i, c])
-          which.min(distances)
-        })
+        # Run k-means with convergence for this k
+        if (!is.null(self$seed)) set.seed(self$seed + k) # Vary seed per k
+
+        centers_idx <- numeric(k)
+        centers_idx[1] <- sample(n_vars, 1)
+
+        if (k > 1) {
+          for (j in 2:k) {
+            min_dists <- apply(dist_matrix[, centers_idx[1:(j - 1)], drop = FALSE], 1, min)
+            probs <- min_dists^2
+            probs[centers_idx[1:(j - 1)]] <- 0
+
+            if (sum(probs) == 0) {
+              remaining <- setdiff(1:n_vars, centers_idx[1:(j - 1)])
+              centers_idx[j] <- sample(remaining, 1)
+            } else {
+              probs <- probs / sum(probs)
+              centers_idx[j] <- sample(n_vars, 1, prob = probs)
+            }
+          }
+        }
+
+        # Lloyd's algorithm (simplified, fewer iterations for speed)
+        converged <- FALSE
+        iter <- 0
+        max_iter_elbow <- 20
+
+        while (!converged && iter < max_iter_elbow) {
+          iter <- iter + 1
+
+          # Assignment step
+          cluster_assignment <- sapply(seq_len(n_vars), function(j) {
+            distances <- sapply(centers_idx, function(c) dist_matrix[j, c])
+            which.min(distances)
+          })
+
+          # Update centers (medoids)
+          old_centers <- centers_idx
+          centers_idx <- sapply(1:k, function(c) {
+            vars_in_c <- which(cluster_assignment == c)
+            if (length(vars_in_c) == 0) {
+              return(old_centers[c])
+            }
+            if (length(vars_in_c) == 1) {
+              return(vars_in_c[1])
+            }
+            avg_dist <- sapply(vars_in_c, function(v) mean(dist_matrix[v, vars_in_c]))
+            vars_in_c[which.min(avg_dist)]
+          })
+
+          if (all(centers_idx == old_centers)) converged <- TRUE
+        }
 
         # Calculate inertia
-        inertias[k] <- sum(sapply(1:k, function(c) {
+        inertias[i] <- sum(sapply(1:k, function(c) {
           vars_idx <- which(cluster_assignment == c)
           if (length(vars_idx) <= 1) {
             return(0)
@@ -405,46 +494,67 @@ KMeansVariablesR6 <- R6::R6Class(
         }))
       }
 
-      # === 5. DETECT ELBOW VIA CURVATURE ===
-      # Normalize inertias to [0, 1]
-      inertias_norm <- (inertias - min(inertias)) / (max(inertias) - min(inertias))
+      # === 5. DETECT ELBOW USING DISTANCE-TO-LINE METHOD ===
+      # Find point farthest from line connecting first and last point
+      n_points <- length(k_range)
 
-      # Calculate curvature (second derivative approximation)
-      curvature <- numeric(k_max - 2)
-      for (i in 2:(k_max - 1)) {
-        curvature[i - 1] <- inertias_norm[i - 1] - 2 * inertias_norm[i] + inertias_norm[i + 1]
+      # Normalize coordinates to [0, 1] for distance calculation
+      k_norm <- (k_range - min(k_range)) / (max(k_range) - min(k_range))
+      inertia_norm <- (inertias - min(inertias)) / (max(inertias) - min(inertias))
+
+      # Line from first to last point
+      x1 <- k_norm[1]
+      y1 <- inertia_norm[1]
+      x2 <- k_norm[n_points]
+      y2 <- inertia_norm[n_points]
+
+      # Calculate perpendicular distance from each point to the line
+      distances_to_line <- numeric(n_points)
+      for (i in seq_along(k_range)) {
+        x0 <- k_norm[i]
+        y0 <- inertia_norm[i]
+
+        # Distance from point (x0, y0) to line through (x1, y1) and (x2, y2)
+        numerator <- abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+        denominator <- sqrt((y2 - y1)^2 + (x2 - x1)^2)
+        distances_to_line[i] <- numerator / denominator
       }
 
-      # Optimal k is where curvature is maximum (sharpest bend)
-      k_optimal <- which.max(curvature) + 1
+      # The elbow is the point with maximum distance to the line
+      elbow_idx <- which.max(distances_to_line)
+      k_optimal <- k_range[elbow_idx]
 
       # === 6. VISUALIZATION ===
       if (plot) {
-        plot(1:k_max, inertias,
-          type = "b", pch = 19, col = "steelblue",
+        plot(k_range, inertias,
+          type = "b", pch = 19, col = "steelblue", lwd = 2,
           xlab = "Number of clusters (k)",
           ylab = "Inertia (within-cluster sum of squares)",
-          main = "Elbow Method for Optimal k Selection"
+          main = "Elbow Method for Optimal k Selection",
+          las = 1
+        )
+
+        # Draw the reference line
+        lines(c(k_range[1], k_range[n_points]),
+          c(inertias[1], inertias[n_points]),
+          col = "gray50", lty = 2, lwd = 1
+        )
+
+        # Mark the elbow
+        points(k_optimal, inertias[elbow_idx],
+          col = "red", pch = 19, cex = 2
         )
         abline(v = k_optimal, col = "red", lty = 2, lwd = 2)
         text(k_optimal, max(inertias) * 0.9,
           labels = paste("Optimal k =", k_optimal),
           pos = 4, col = "red", font = 2
         )
+
+        grid(col = "gray90", lty = "dotted")
       }
 
       message(sprintf("✓ Elbow method selected k = %d", k_optimal))
       return(k_optimal)
-    },
-
-    #' @description
-    #' Automatically suggest optimal k using elbow method (wrapper for compatibility)
-    #' @param X A data.frame or matrix with numeric variables
-    #' @param max_k Maximum number of clusters to test (default: 10)
-    #' @param method Method (kept for compatibility, always uses elbow)
-    #' @return Optimal number of clusters
-    suggest_k_automatic = function(X, max_k = 10, method = "elbow") {
-      return(self$elbow_method(X, k_max = max_k, plot = FALSE))
     }
   )
 )

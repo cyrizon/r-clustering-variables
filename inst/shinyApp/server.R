@@ -153,18 +153,9 @@ function(input, output, session) {
                     max = 10,
                     step = 1
                 ),
-                checkboxInput("auto_k", "Auto-detect optimal k", FALSE),
+                checkboxInput("auto_k", "Auto-detect optimal k (elbow method)", FALSE),
                 conditionalPanel(
                     condition = "input.auto_k == true",
-                    selectInput("k_method",
-                        "Auto-detection method:",
-                        choices = c(
-                            "Elbow (curvature)" = "elbow",
-                            "Silhouette" = "silhouette",
-                            "Gap Statistic" = "gap"
-                        ),
-                        selected = "elbow"
-                    ),
                     numericInput("max_k",
                         "Max k to test:",
                         value = 10,
@@ -173,6 +164,13 @@ function(input, output, session) {
                         step = 1
                     )
                 ),
+                numericInput("nstart",
+                    "Number of random starts (nstart):",
+                    value = 10,
+                    min = 1,
+                    max = 50,
+                    step = 1
+                ),
                 numericInput("seed",
                     "Random seed (optional):",
                     value = NA,
@@ -180,7 +178,7 @@ function(input, output, session) {
                     max = NA,
                     step = 1
                 ),
-                helpText("📝 Simple k-means with medoid centers and elbow method for optimal k selection")
+                helpText("📝 K-Means++ initialization with multi-starts for stability")
             )
         } else if (input$algorithm == "hac") {
             tagList(
@@ -252,7 +250,7 @@ function(input, output, session) {
                     params <- prepare_algo_parameters(algorithm, input)
 
                     incProgress(0.3, detail = "Running clustering workflow...")
-                    
+
                     # Run clustering workflow (delegates to helper)
                     result <- run_clustering_workflow(
                         X,
@@ -261,7 +259,7 @@ function(input, output, session) {
                     )
 
                     incProgress(0.8, detail = "Storing results...")
-                    
+
                     # Store results
                     rv$model <- result$model
                     rv$results <- result$results
