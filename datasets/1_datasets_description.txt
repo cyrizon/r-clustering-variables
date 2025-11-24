@@ -1,0 +1,5 @@
+* acp_autos : 6 variables -> 3 clusters (cylindrée | performance : Vmax, Puiss | encombrement : Larg, Long, Poids) lien video : https://www.youtube.com/watch?v=OCQDHYaIF0k&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=7
+* jobrate : 12 variables + 1 variable illustrative (Overall_Rating) -> 4 clusters. lien de la video https://www.youtube.com/watch?v=Wwq20qxS2E8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=13
+* protein_datasets : 9 variables et difficile de s'accorder sur un nombre de clusters. Plutôt 2, 3 ou 4 suivant l'interprétation qu'on en fait et comment on tranche. lien video : https://www.youtube.com/watch?v=NEOWHKsZQqc
+* vote_catvarclus : variables qualitatives ! 6 variables explicatives et une illustrative : affiliation. 3 clusters (tous les neither ensemble | et des oui non sur d'autres sujets) https://www.youtube.com/watch?v=QVK3i44oGx8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=14
+* Autos2005 : données mixtes, aucune idée des clusters. video ressource sur les données mixtes : https://www.youtube.com/watch?v=Vhg0MKZ4t2E&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=15
