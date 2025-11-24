@@ -1,0 +1,14 @@
+# Charger les bibliothèques nécessaires
+library(R6)
+library(FactoMineR)
+
+# Charger les classes et fonctions du package
+source("R/algorithms/ACMVariablesR6.R")
+
+data <- read.csv("datasets/vote_catvarclus.csv", sep=";")
+
+# Prétraitement des données
+# On sélectionne uniquement les variables descriptives pour le clustering
+X <- data[, 2:7]
+
+#Etape 1: Clustering de variables avec K=3
