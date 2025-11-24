@@ -1,3 +1,20 @@
+#' Auto-detect separator from file
+#' @param file_path Path to file
+#' @return character separator (comma, semicolon, or tab)
+detect_separator <- function(file_path) {
+  # Read first few lines
+  lines <- readLines(file_path, n = 5, warn = FALSE)
+  
+  # Count separators
+  comma_count <- sum(grepl(",", lines))
+  semicolon_count <- sum(grepl(";", lines))
+  tab_count <- sum(grepl("\t", lines))
+  
+  # Return most common
+  counts <- c("," = comma_count, ";" = semicolon_count, "\t" = tab_count)
+  return(names(counts)[which.max(counts)])
+}
+
 # =============================================================================
 # Data Loading and Validation Helpers
 # Handles data loading from files and example datasets
@@ -32,8 +49,15 @@ load_example_data <- function(data_path = "../../tests/testthat/College_Data") {
 #' @param file_path Path to uploaded file
 #' @param header Whether file has header row
 #' @param sep Column separator
+#' @param sep Column separator (if NULL, auto-detect)
 #' @return data.frame with loaded data
-load_uploaded_data <- function(file_path, header = TRUE, sep = ",") {
+load_uploaded_data <- function(file_path, header = TRUE, sep = NULL) {
+  # Auto-detect separator if not provided
+  if (is.null(sep)) {
+    sep <- detect_separator(file_path)
+    message(paste("Auto-detected separator:", sep))
+  }
+  
   data <- read.table(
     file_path,
     header = header,

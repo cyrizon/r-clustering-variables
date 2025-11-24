@@ -93,10 +93,13 @@ function(input, output, session) {
 
         tryCatch(
             {
+                # Use auto-detect if enabled, otherwise use manual selection
+                sep_to_use <- if (input$auto_sep) NULL else input$sep
+
                 rv$data <- load_uploaded_data(
                     input$data_file$datapath,
                     header = input$header,
-                    sep = input$sep
+                    sep = sep_to_use
                 )
 
                 # Extract numeric variables
@@ -146,20 +149,6 @@ function(input, output, session) {
 
         if (input$algorithm == "kmeans") {
             tagList(
-                numericInput("nstart",
-                    "kmeans: number of random starts (nstart):",
-                    value = 25,
-                    min = 1,
-                    max = 1000,
-                    step = 1
-                ),
-                numericInput("seed",
-                    "Optional random seed (integer, leave blank for none):",
-                    value = NA,
-                    min = NA,
-                    max = NA,
-                    step = 1
-                ),
                 numericInput("k",
                     "Number of Clusters (k):",
                     value = 3,
@@ -167,25 +156,32 @@ function(input, output, session) {
                     max = 10,
                     step = 1
                 ),
-                checkboxInput("auto_k", "Auto-detect optimal k", FALSE),
+                checkboxInput("auto_k", "Auto-detect optimal k (elbow method)", FALSE),
                 conditionalPanel(
                     condition = "input.auto_k == true",
-                    selectInput("k_method",
-                        "Method:",
-                        choices = c(
-                            "Silhouette" = "silhouette",
-                            "Gap Statistic" = "gap"
-                        ),
-                        selected = "silhouette"
-                    ),
                     numericInput("max_k",
                         "Max k to test:",
-                        value = 8,
+                        value = 10,
                         min = 3,
-                        max = 15,
+                        max = 20,
                         step = 1
                     )
-                )
+                ),
+                numericInput("nstart",
+                    "Number of random starts (nstart):",
+                    value = 10,
+                    min = 1,
+                    max = 50,
+                    step = 1
+                ),
+                numericInput("seed",
+                    "Random seed (optional):",
+                    value = NA,
+                    min = NA,
+                    max = NA,
+                    step = 1
+                ),
+                helpText("📝 K-Means++ initialization with multi-starts for stability")
             )
         } else if (input$algorithm == "hac") {
             tagList(
@@ -257,7 +253,7 @@ function(input, output, session) {
                     params <- prepare_algo_parameters(algorithm, input)
 
                     incProgress(0.3, detail = "Running clustering workflow...")
-                    
+
                     # Run clustering workflow (delegates to helper)
                     result <- run_clustering_workflow(
                         X,
@@ -266,7 +262,7 @@ function(input, output, session) {
                     )
 
                     incProgress(0.8, detail = "Storing results...")
-                    
+
                     # Store results
                     rv$model <- result$model
                     rv$results <- result$results

@@ -2,9 +2,8 @@
 create_model <- function(algorithm = "kmeans", params = list()) {
   alg <- if (is.null(algorithm)) "kmeans" else algorithm
   method <- if (!is.null(params$method)) params$method else NULL
-  dist_strategy <- if (!is.null(params$dist_strategy)) params$dist_strategy else NULL
   k <- if (!is.null(params$k)) params$k else NULL
-  nstart <- if (!is.null(params$nstart)) params$nstart else 25
+  nstart <- if (!is.null(params$nstart)) params$nstart else 10
   seed <- if (!is.null(params$seed)) params$seed else NULL
 
   if (alg == "kmeans") {
@@ -14,7 +13,6 @@ create_model <- function(algorithm = "kmeans", params = list()) {
     return(KMeansVariablesR6$new(
       k = k,
       method = method,
-      dist_strategy = ifelse(is.null(dist_strategy), "pam", dist_strategy),
       nstart = nstart,
       seed = seed
     ))
@@ -26,8 +24,7 @@ create_model <- function(algorithm = "kmeans", params = list()) {
     }
     return(HACVariablesR6$new(
       k = k,
-      method = method,
-      dist_strategy = ifelse(is.null(dist_strategy), "pam", dist_strategy)
+      method = method
     ))
   }
 
@@ -37,8 +34,7 @@ create_model <- function(algorithm = "kmeans", params = list()) {
     }
     return(ACMVariablesR6$new(
       k = k,
-      method = method,
-      dist_strategy = ifelse(is.null(dist_strategy), "pam", dist_strategy)
+      method = method
     ))
   }
 

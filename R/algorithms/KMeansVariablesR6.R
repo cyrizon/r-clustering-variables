@@ -1,7 +1,8 @@
-#' K-Means Clustering for Variables
+#' Simple K-Means Clustering for Variables (Educational Implementation)
 #'
 #' @description
-#' This class encapsulates the K-means algorithm for variable clustering.
+#' Version simplifiée et pédagogique du K-Means pour clustering de variables.
+#' Illustre les concepts de base avec médoïdes et méthode du coude intégrée.
 #' Variables are grouped based on their similarity (correlation or euclidean distance).
 #'
 #' @export
@@ -12,14 +13,14 @@ KMeansVariablesR6 <- R6::R6Class(
     k = NULL,
     #' @field method Distance method ("correlation" or "euclidean")
     method = NULL,
-    #' @field dist_strategy Strategy to handle correlation distances ("pam", "mds")
-    dist_strategy = NULL,
-    #' @field model K-means model object
-    model = NULL,
+    #' @field max_iter Maximum iterations for convergence
+    max_iter = 100,
+    #' @field centers Cluster centers (indices of medoid variables)
+    centers = NULL,
     #' @field clusters List of variable names per cluster
     clusters = NULL,
-    #' @field centers Cluster centers
-    centers = NULL,
+    #' @field inertia Total within-cluster sum of squares
+    inertia = NULL,
     #' @field fitted Logical indicating if model has been fitted
     fitted = FALSE,
     #' @field data_fit Normalized data used for fitting
@@ -28,26 +29,27 @@ KMeansVariablesR6 <- R6::R6Class(
     scale_center = NULL,
     #' @field scale_scale Scaling parameters from scaling
     scale_scale = NULL,
-    #' @field nstart Number of random starts passed to kmeans
-    nstart = 25,
     #' @field seed Optional seed for reproducibility
     seed = NULL,
+    #' @field nstart Number of random starts (default: 10)
+    nstart = 10,
 
     #' @description
     #' Create a new KMeansVariablesR6 object
-    #' @param k Number of clusters (default: 2)
+    #' @param k Number of clusters (default: 3)
     #' @param method Distance method: "correlation" or "euclidean" (default: "correlation")
+    #' @param max_iter Maximum iterations for convergence (default: 100)
+    #' @param seed Optional seed for reproducibility
     #' @return A new `KMeansVariablesR6` object
-    initialize = function(k = 2,
+    initialize = function(k = 3,
                           method = c("correlation", "euclidean"),
-                          dist_strategy = c("pam", "mds"),
-                          nstart = 25,
+                          max_iter = 100,
+                          nstart = 10,
                           seed = NULL) {
-      # Validate and store core parameters
       self$k <- k
       self$method <- match.arg(method)
-      self$dist_strategy <- match.arg(dist_strategy)
-      self$nstart <- as.integer(nstart)
+      self$max_iter <- max_iter
+      self$nstart <- nstart
       self$seed <- if (!is.null(seed)) as.integer(seed) else NULL
     },
 
@@ -56,7 +58,7 @@ KMeansVariablesR6 <- R6::R6Class(
     #' @param X A data.frame or matrix with numeric variables to cluster
     #' @return Self (invisibly) for method chaining
     fit = function(X) {
-      # Input validations
+      # === 1. VALIDATION ===
       if (!is.data.frame(X) && !is.matrix(X)) {
         stop("X must be a data.frame or matrix.")
       }
@@ -75,55 +77,144 @@ KMeansVariablesR6 <- R6::R6Class(
         colnames(X) <- paste0("V", seq_len(ncol(X)))
       }
 
-      # Normalize data (center and scale)
+      # === 2. PRÉPARATION DES DONNÉES ===
+      # Normalize data (center and scale) so all variables are comparable
       X_norm <- scale(X)
       self$data_fit <- X_norm
       # Store normalization parameters for predict()
       self$scale_center <- attr(X_norm, "scaled:center")
       self$scale_scale <- attr(X_norm, "scaled:scale")
 
-      # Transpose to have variables as rows (observations)
-      X_t <- t(X_norm)
+      n_obs <- nrow(X_norm)
+      n_vars <- ncol(X_norm)
+      var_names <- colnames(X_norm)
 
-      # Apply clustering on variables
-      if (!is.null(self$seed)) set.seed(self$seed)
-
+      # === 3. CALCUL DE LA MATRICE DE DISTANCE ENTRE VARIABLES ===
+      # Key: we want to group VARIABLES (columns), not observations (rows)
       if (self$method == "correlation") {
-        # Use correlation-based distance
-        cor_mat <- cor(X_norm)
-        dist_mat <- 1 - abs(cor_mat)
-
-        if (self$dist_strategy == "pam") {
-          if (!requireNamespace("cluster", quietly = TRUE)) {
-            stop("Package 'cluster' is required for dist_strategy = 'pam'.")
-          }
-          dis <- as.dist(dist_mat)
-          pam_res <- cluster::pam(dis, k = self$k, diss = TRUE)
-          # Wrap PAM result to behave similarly to kmeans for downstream usage
-          km <- list(cluster = pam_res$clustering, centers = NULL, withinss = NA, tot.withinss = NA, betweenss = NA, pam = pam_res)
-        } else if (self$dist_strategy == "mds") {
-          # Embed distance matrix into Euclidean space then kmeans
-          kdim <- min(max(2, self$k), max(2, ncol(X_norm) - 1))
-          coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-          km <- kmeans(coords, centers = self$k, nstart = self$nstart)
-        } else {
-          stop("Unknown dist_strategy. Use 'pam' or 'mds'.")
-        }
-      } else if (self$method == "euclidean") {
-        # Euclidean distance between variables (variables as rows)
-        km <- kmeans(X_t, centers = self$k, nstart = self$nstart)
+        # Distance based on correlation: D(i,j) = 1 - |cor(var_i, var_j)|
+        # More correlated = closer
+        cor_matrix <- cor(X_norm)
+        dist_matrix <- 1 - abs(cor_matrix) # Distance in [0, 2]
       } else {
-        stop("Method not recognized. Use 'correlation' or 'euclidean'.")
+        # Euclidean distance between variable vectors (transpose to have variables as rows)
+        dist_matrix <- as.matrix(dist(t(X_norm)))
       }
 
-      self$model <- km
-      # make sure clustering vector has variable names
-      clust_vec <- km$cluster
-      if (is.null(names(clust_vec))) names(clust_vec) <- colnames(X)
-      self$clusters <- split(names(clust_vec), clust_vec)
-      # store centers (may be NULL for PAM)
-      self$centers <- km$centers
+      # === 4. MULTI-STARTS FOR STABILITY ===
+      best_inertia <- Inf
+      best_centers <- NULL
+      best_clusters <- NULL
+
+      for (start_run in 1:self$nstart) {
+        # Different seed for each start
+        if (!is.null(self$seed)) set.seed(self$seed + start_run * 1000)
+
+        # First center: random
+        initial_centers_idx <- numeric(self$k)
+        initial_centers_idx[1] <- sample(n_vars, 1)
+
+        # Subsequent centers: probability proportional to D²
+        for (i in 2:self$k) {
+          # Minimum distance of each variable to already chosen centers
+          min_dists <- apply(dist_matrix[, initial_centers_idx[1:(i - 1)], drop = FALSE], 1, min)
+
+          # Probabilities proportional to D²
+          probs <- min_dists^2
+          probs[initial_centers_idx[1:(i - 1)]] <- 0 # Avoid re-selecting a center
+
+          # Handle edge case where all probs are 0
+          if (sum(probs) == 0) {
+            remaining <- setdiff(1:n_vars, initial_centers_idx[1:(i - 1)])
+            initial_centers_idx[i] <- sample(remaining, 1)
+          } else {
+            probs <- probs / sum(probs)
+            initial_centers_idx[i] <- sample(n_vars, 1, prob = probs)
+          }
+        }
+
+        current_centers_idx <- initial_centers_idx
+
+        # === 5. ALGORITHME K-MEANS (LLOYD) ===
+        converged <- FALSE
+        iter <- 0
+        cluster_assignment <- rep(0, n_vars)
+
+        while (!converged && iter < self$max_iter) {
+          iter <- iter + 1
+          old_assignment <- cluster_assignment
+
+          # --- STEP A: ASSIGNMENT ---
+          # Assign each variable to the nearest center
+          for (i in seq_len(n_vars)) {
+            # Calculate distance from variable i to each center
+            distances_to_centers <- sapply(seq_len(self$k), function(c) {
+              center_idx <- current_centers_idx[c]
+              dist_matrix[i, center_idx]
+            })
+            # Assign to cluster of nearest center
+            cluster_assignment[i] <- which.min(distances_to_centers)
+          }
+
+          # --- STEP B: UPDATE CENTERS ---
+          # Recalculate center of each cluster (medoid = most central variable)
+          new_centers_idx <- sapply(seq_len(self$k), function(c) {
+            # Variables belonging to cluster c
+            vars_in_cluster <- which(cluster_assignment == c)
+
+            if (length(vars_in_cluster) == 0) {
+              # Empty cluster: keep old center or reinitialize randomly
+              warning(paste("Cluster", c, "is empty at iteration", iter))
+              return(current_centers_idx[c])
+            }
+
+            if (length(vars_in_cluster) == 1) {
+              # Single member: it becomes the center
+              return(vars_in_cluster[1])
+            }
+
+            # Calculate the "medoid" variable: one that minimizes average distance to other members
+            avg_distances <- sapply(vars_in_cluster, function(candidate) {
+              mean(dist_matrix[candidate, vars_in_cluster])
+            })
+            vars_in_cluster[which.min(avg_distances)]
+          })
+
+          # --- CHECK CONVERGENCE ---
+          # If assignments don't change, we've converged
+          if (all(cluster_assignment == old_assignment)) {
+            converged <- TRUE
+          }
+
+          current_centers_idx <- new_centers_idx
+        }
+
+        # Calculate inertia for this run
+        run_inertia <- sum(sapply(seq_len(self$k), function(c) {
+          vars_idx <- which(cluster_assignment == c)
+          if (length(vars_idx) <= 1) {
+            return(0)
+          }
+          center_idx <- current_centers_idx[c]
+          sum(dist_matrix[vars_idx, center_idx]^2)
+        }))
+
+        # Keep best result
+        if (run_inertia < best_inertia) {
+          best_inertia <- run_inertia
+          best_centers <- current_centers_idx
+          names(cluster_assignment) <- var_names
+          best_clusters <- split(names(cluster_assignment), cluster_assignment)
+        }
+      } # End multi-starts loop
+
+      # === 6. STORE BEST RESULTS ===
+      self$clusters <- best_clusters
+      self$centers <- best_centers
+      self$inertia <- best_inertia
+
       self$fitted <- TRUE
+      message(sprintf("\u2713 Best of %d starts | Inertia: %.3f", self$nstart, self$inertia))
       invisible(self)
     },
 
@@ -263,132 +354,49 @@ KMeansVariablesR6 <- R6::R6Class(
     #' @description
     #' Print detailed model summary
     summary = function() {
-      cat("KMeansVariablesR6 summary\n")
+      cat("=== KMeansVariablesR6 Summary ===\n")
       cat("Number of clusters:", self$k, "\n")
       cat("Distance method:", self$method, "\n")
+
       if (self$fitted) {
-        cat("Variables per cluster:\n")
-        print(self$clusters)
-        cat("\nCluster centers / representatives:\n")
-        # Show representative variables (medoids or closest variables to centers)
-        reps <- tryCatch(self$representative_variables(), error = function(e) NULL)
-        if (!is.null(reps)) {
-          rep_df <- data.frame(cluster = seq_along(reps), representative = unname(reps), stringsAsFactors = FALSE)
-          print(rep_df)
-        } else if (!is.null(self$centers)) {
-          print(self$centers)
-        } else if (!is.null(self$model$pam)) {
-          cat("PAM medoids (representative variables):\n")
-          print(self$model$pam$id.med)
-        } else {
-          cat("Centers not available for this strategy (e.g. PAM without explicit centers).\n")
-        }
-        # Show within-cluster dissimilarities / sums
-        cat("\nCluster dissimilarities / within-cluster metrics:\n")
-        diss <- tryCatch(self$get_cluster_diss(), error = function(e) NULL)
-        if (!is.null(diss)) {
-          print(diss)
-        } else if (!is.null(self$model$withinss)) {
-          print(self$model$withinss)
-        } else {
-          cat("No within-cluster metrics available for this strategy.\n")
-        }
         cat("\nCluster sizes:\n")
         print(sapply(self$clusters, length))
-        cat("\nTotal within-cluster dissimilarity / inertia:\n")
-        total <- tryCatch(self$get_total_within_diss(), error = function(e) NA)
-        print(total)
-        if (!is.null(self$model$betweenss)) cat("Between-cluster sum of squares:", self$model$betweenss, "\n")
+
+        cat("\nVariables per cluster:\n")
+        print(self$clusters)
+
+        cat("\nCenter variables (medoids):\n")
+        center_vars <- self$get_center_variables()
+        print(data.frame(
+          cluster = seq_along(center_vars),
+          center_variable = center_vars,
+          stringsAsFactors = FALSE
+        ))
+
+        cat("\nTotal inertia:", round(self$inertia, 3), "\n")
       } else {
         cat("Model not fitted yet.\n")
       }
     },
 
     #' @description
-    #' Return representative variable (medoid or closest-to-center) for each cluster
-    representative_variables = function() {
+    #' Get the center variable (medoid) for each cluster
+    #' @return Character vector of center variable names
+    get_center_variables = function() {
       if (!self$fitted) stop("Model not fitted")
-      # PAM: use medoids
-      if (!is.null(self$model$pam)) {
-        ids <- self$model$pam$id.med
-        vars <- colnames(self$data_fit)
-        return(vars[ids])
-      }
-
-      # If centers are available, compute the nearest variable to each center
-      if (!is.null(self$centers)) {
-        if (self$method == "euclidean") {
-          X_t <- t(self$data_fit)
-          centers <- self$centers
-          reps <- sapply(seq_len(nrow(centers)), function(k) {
-            d <- apply(X_t, 1, function(r) sqrt(sum((r - centers[k, ])^2)))
-            names(d)[which.min(d)]
-          })
-          return(reps)
-        } else if (self$method == "correlation") {
-          if (self$dist_strategy == "mds") {
-            cor_mat <- cor(self$data_fit)
-            dist_mat <- 1 - abs(cor_mat)
-            # number of dimensions equals centers' columns
-            kdim <- if (!is.null(self$centers)) ncol(self$centers) else 2
-            coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-            centers <- self$centers
-            reps <- sapply(seq_len(nrow(centers)), function(k) {
-              d <- apply(coords, 1, function(r) sqrt(sum((r - centers[k, ])^2)))
-              names(d)[which.min(d)]
-            })
-            return(reps)
-          }
-        }
-      }
-      return(NULL)
+      var_names <- colnames(self$data_fit)
+      return(var_names[self$centers])
     },
 
     #' @description
-    #' Compute within-cluster dissimilarity vector (one value per cluster)
-    get_cluster_diss = function() {
-      if (!self$fitted) stop("Model not fitted")
-      if (!is.null(self$model$pam)) {
-        # compute sum of pairwise dissimilarities within each cluster
-        cor_mat <- cor(self$data_fit)
-        dm <- as.matrix(1 - abs(cor_mat))
-        cl <- self$model$pam$clustering
-        res <- numeric(max(cl))
-        for (c in unique(cl)) {
-          members <- which(cl == c)
-          if (length(members) > 1) {
-            res[c] <- sum(dm[members, members]) / 2
-          } else {
-            res[c] <- 0
-          }
-        }
-        return(res)
-      } else if (!is.null(self$model$withinss)) {
-        return(self$model$withinss)
-      }
-      return(NULL)
-    },
-
-    #' @description
-    #' Compute total within-cluster dissimilarity (scalar)
-    get_total_within_diss = function() {
-      if (!self$fitted) stop("Model not fitted")
-      if (!is.null(self$model$pam)) {
-        vec <- self$get_cluster_diss()
-        return(sum(vec, na.rm = TRUE))
-      } else if (!is.null(self$model$tot.withinss)) {
-        return(self$model$tot.withinss)
-      }
-      return(NA)
-    },
-
-    #' @description
-    #' Elbow method to help choose optimal k
+    #' Elbow method: automatically determine optimal k using distance-to-line method
     #' @param X A data.frame or matrix with numeric variables
-    #' @param max_k Maximum number of clusters to test (default: 10)
-    #' @param plot Whether to plot the results (default: TRUE)
-    #' @return Vector of within-cluster sum of squares for each k
-    suggest_k = function(X, max_k = 10, plot = TRUE) {
+    #' @param k_min Minimum number of clusters to test (default: 2)
+    #' @param k_max Maximum number of clusters to test (default: 10)
+    #' @param plot Whether to plot the elbow curve (default: TRUE)
+    #' @return Optimal number of clusters
+    elbow_method = function(X, k_min = 2, k_max = 10, plot = TRUE) {
+      # === 1. VALIDATION ===
       if (!is.data.frame(X) && !is.matrix(X)) {
         stop("X must be a data.frame or matrix.")
       }
@@ -400,202 +408,153 @@ KMeansVariablesR6 <- R6::R6Class(
       }
 
       n_vars <- ncol(X)
-      if (n_vars < 2) stop("At least two variables are required to suggest k.")
-      max_k <- min(max_k, n_vars - 1)
-      if (max_k < 1) stop("Not enough variables to suggest k for the given max_k.")
-      wss <- numeric(max_k)
+      k_max <- min(k_max, n_vars - 1)
+      k_min <- max(k_min, 2)
+      if (k_max < k_min) stop("Not enough variables to run elbow method.")
 
-      # Normalize data
+      # === 2. NORMALIZE DATA ===
       X_norm <- scale(X)
 
+      # === 3. CALCULATE DISTANCE MATRIX ===
       if (self$method == "correlation") {
-        # Correlation-based distance
-        cor_mat <- cor(X_norm)
-        dist_mat <- 1 - abs(cor_mat)
-        if (self$dist_strategy == "mds") {
-          # Embed distances via MDS then compute WSS on coordinates
-          kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
-          coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-          for (k in 1:max_k) {
-            km <- kmeans(coords, centers = k, nstart = self$nstart)
-            wss[k] <- km$tot.withinss
-          }
-        } else if (self$dist_strategy == "pam") {
-          if (!requireNamespace("cluster", quietly = TRUE)) stop("Package 'cluster' is required for dist_strategy = 'pam'.")
-          # For PAM we compute total within-cluster dissimilarity (sum of pairwise distances within clusters)
-          dm <- as.matrix(dist_mat)
-          for (k in 1:max_k) {
-            pam_res <- cluster::pam(as.dist(dist_mat), k = k, diss = TRUE)
-            cl <- pam_res$clustering
-            total_within <- 0
-            for (clu in unique(cl)) {
-              members <- which(cl == clu)
-              if (length(members) > 1) {
-                # sum of pairwise distances inside cluster (divide by 2 because symmetric)
-                total_within <- total_within + sum(dm[members, members]) / 2
-              }
-            }
-            wss[k] <- total_within
-          }
-        } else {
-          stop("Unknown dist_strategy in suggest_k.")
-        }
-      } else if (self$method == "euclidean") {
-        # Euclidean distance between variables
-        X_t <- t(X_norm)
-
-        for (k in 1:max_k) {
-          km <- kmeans(X_t, centers = k, nstart = self$nstart)
-          wss[k] <- km$tot.withinss
-        }
+        cor_matrix <- cor(X_norm)
+        dist_matrix <- 1 - abs(cor_matrix)
       } else {
-        stop("Method not recognized. Use 'correlation' or 'euclidean'.")
+        dist_matrix <- as.matrix(dist(t(X_norm)))
       }
 
+      # === 4. COMPUTE INERTIA FOR EACH k (starting from k_min, not k=1) ===
+      k_range <- k_min:k_max
+      inertias <- numeric(length(k_range))
+
+      for (i in seq_along(k_range)) {
+        k <- k_range[i]
+
+        # Run k-means with convergence for this k
+        if (!is.null(self$seed)) set.seed(self$seed + k) # Vary seed per k
+
+        centers_idx <- numeric(k)
+        centers_idx[1] <- sample(n_vars, 1)
+
+        if (k > 1) {
+          for (j in 2:k) {
+            min_dists <- apply(dist_matrix[, centers_idx[1:(j - 1)], drop = FALSE], 1, min)
+            probs <- min_dists^2
+            probs[centers_idx[1:(j - 1)]] <- 0
+
+            if (sum(probs) == 0) {
+              remaining <- setdiff(1:n_vars, centers_idx[1:(j - 1)])
+              centers_idx[j] <- sample(remaining, 1)
+            } else {
+              probs <- probs / sum(probs)
+              centers_idx[j] <- sample(n_vars, 1, prob = probs)
+            }
+          }
+        }
+
+        # Lloyd's algorithm (simplified, fewer iterations for speed)
+        converged <- FALSE
+        iter <- 0
+        max_iter_elbow <- 20
+
+        while (!converged && iter < max_iter_elbow) {
+          iter <- iter + 1
+
+          # Assignment step
+          cluster_assignment <- sapply(seq_len(n_vars), function(j) {
+            distances <- sapply(centers_idx, function(c) dist_matrix[j, c])
+            which.min(distances)
+          })
+
+          # Update centers (medoids)
+          old_centers <- centers_idx
+          centers_idx <- sapply(1:k, function(c) {
+            vars_in_c <- which(cluster_assignment == c)
+            if (length(vars_in_c) == 0) {
+              return(old_centers[c])
+            }
+            if (length(vars_in_c) == 1) {
+              return(vars_in_c[1])
+            }
+            avg_dist <- sapply(vars_in_c, function(v) mean(dist_matrix[v, vars_in_c]))
+            vars_in_c[which.min(avg_dist)]
+          })
+
+          if (all(centers_idx == old_centers)) converged <- TRUE
+        }
+
+        # Calculate inertia
+        inertias[i] <- sum(sapply(1:k, function(c) {
+          vars_idx <- which(cluster_assignment == c)
+          if (length(vars_idx) <= 1) {
+            return(0)
+          }
+          center_idx <- centers_idx[c]
+          sum(dist_matrix[vars_idx, center_idx]^2)
+        }))
+      }
+
+      # === 5. DETECT ELBOW USING DISTANCE-TO-LINE METHOD ===
+      # Find point farthest from line connecting first and last point
+      n_points <- length(k_range)
+
+      # Normalize coordinates to [0, 1] for distance calculation
+      k_norm <- (k_range - min(k_range)) / (max(k_range) - min(k_range))
+      inertia_norm <- (inertias - min(inertias)) / (max(inertias) - min(inertias))
+
+      # Line from first to last point
+      x1 <- k_norm[1]
+      y1 <- inertia_norm[1]
+      x2 <- k_norm[n_points]
+      y2 <- inertia_norm[n_points]
+
+      # Calculate perpendicular distance from each point to the line
+      distances_to_line <- numeric(n_points)
+      for (i in seq_along(k_range)) {
+        x0 <- k_norm[i]
+        y0 <- inertia_norm[i]
+
+        # Distance from point (x0, y0) to line through (x1, y1) and (x2, y2)
+        numerator <- abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+        denominator <- sqrt((y2 - y1)^2 + (x2 - x1)^2)
+        distances_to_line[i] <- numerator / denominator
+      }
+
+      # The elbow is the point with maximum distance to the line
+      elbow_idx <- which.max(distances_to_line)
+      k_optimal <- k_range[elbow_idx]
+
+      # === 6. VISUALIZATION ===
       if (plot) {
-        plot(1:max_k, wss,
-          type = "b", pch = 19, frame = FALSE,
-          xlab = "Number of clusters k",
-          ylab = "Within-cluster sum of squares",
-          main = "Elbow method for choosing k"
-        )
-      }
-      return(wss)
-    },
-
-    #' @description
-    #' Automatically suggest optimal k using statistical methods
-    #' @param X A data.frame or matrix with numeric variables
-    #' @param max_k Maximum number of clusters to test (default: 10)
-    #' @param method Method to use: "silhouette" or "gap" (default: "silhouette")
-    #' @return Optimal number of clusters
-    suggest_k_automatic = function(X, max_k = 10, method = "silhouette") {
-      # Basic validations
-      if (!is.data.frame(X) && !is.matrix(X)) {
-        stop("X must be a data.frame or matrix.")
-      }
-      if (!all(sapply(X, is.numeric))) {
-        stop("All variables must be numeric.")
-      }
-      if (anyNA(X)) {
-        stop("Data must not contain missing values (NA).")
-      }
-
-      # Prepare data: normalize
-      X_norm <- scale(X)
-      n_vars <- ncol(X_norm)
-      max_k <- min(max_k, n_vars - 1)
-      if (max_k < 2) stop("Not enough variables to run automatic k suggestion. Increase data dimensionality or reduce max_k.")
-      if (!is.null(self$seed)) set.seed(self$seed)
-
-      if (method == "silhouette") {
-        # Silhouette method
-        if (!requireNamespace("cluster", quietly = TRUE)) {
-          stop("Package 'cluster' is required for silhouette method.")
-        }
-
-        sil_widths <- numeric(max_k - 1)
-
-        if (self$method == "correlation") {
-          cor_mat <- cor(X_norm)
-          dist_mat <- 1 - abs(cor_mat)
-
-          if (self$dist_strategy == "mds") {
-            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
-            coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-            for (k in 2:max_k) {
-              km <- kmeans(coords, centers = k, nstart = self$nstart)
-              sil <- cluster::silhouette(km$cluster, dist(coords))
-              sil_widths[k - 1] <- mean(sil[, 3])
-            }
-          } else if (self$dist_strategy == "pam") {
-            for (k in 2:max_k) {
-              pam_res <- cluster::pam(as.dist(dist_mat), k = k, diss = TRUE)
-              sil <- cluster::silhouette(pam_res$clustering, as.dist(dist_mat))
-              sil_widths[k - 1] <- mean(sil[, 3])
-            }
-          } else {
-            stop("Unknown dist_strategy in suggest_k_automatic (silhouette).")
-          }
-        } else {
-          # Euclidean distance
-          X_t <- t(X_norm)
-
-          for (k in 2:max_k) {
-            km <- kmeans(X_t, centers = k, nstart = self$nstart)
-            sil <- cluster::silhouette(km$cluster, dist(X_t))
-            sil_widths[k - 1] <- mean(sil[, 3])
-          }
-        }
-
-        optimal_k <- which.max(sil_widths) + 1
-
-        if (interactive()) {
-          plot(2:max_k, sil_widths,
-            type = "b", pch = 19, frame = FALSE,
-            xlab = "Number of clusters k",
-            ylab = "Average silhouette width",
-            main = "Silhouette method (variable clustering)"
-          )
-          abline(v = optimal_k, col = "red", lty = 2)
-        }
-
-        message("\u2713 Optimal number of clusters (silhouette): ", optimal_k)
-        return(optimal_k)
-      } else if (method == "gap") {
-        # Gap statistic method
-        if (!requireNamespace("cluster", quietly = TRUE)) {
-          stop("Package 'cluster' is required for gap statistic method.")
-        }
-
-        set.seed(123) # For reproducibility
-
-        if (self$method == "correlation") {
-          cor_mat <- cor(X_norm)
-          dist_mat <- 1 - abs(cor_mat)
-
-          if (self$dist_strategy == "mds") {
-            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
-            coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-            gap_stat <- cluster::clusGap(coords,
-              FUN = function(x, k) kmeans(x, centers = k, nstart = 25),
-              K.max = max_k, B = 50
-            )
-          } else if (self$dist_strategy == "pam") {
-            # PAM does not directly accept clusGap; approximate via MDS embedding
-            kdim <- min(max(2, max_k), max(2, ncol(X_norm) - 1))
-            coords <- stats::cmdscale(as.dist(dist_mat), k = kdim)
-            gap_stat <- cluster::clusGap(coords,
-              FUN = function(x, k) kmeans(x, centers = k, nstart = 25),
-              K.max = max_k, B = 50
-            )
-          } else {
-            stop("Unknown dist_strategy in suggest_k_automatic (gap).")
-          }
-        } else {
-          X_t <- t(X_norm)
-
-          gap_stat <- cluster::clusGap(X_t,
-            FUN = function(x, k) kmeans(x, centers = k, nstart = 25),
-            K.max = max_k, B = 50
-          )
-        }
-
-        optimal_k <- cluster::maxSE(gap_stat$Tab[, "gap"],
-          gap_stat$Tab[, "SE.sim"],
-          method = "Tibs2001SEmax"
+        plot(k_range, inertias,
+          type = "b", pch = 19, col = "steelblue", lwd = 2,
+          xlab = "Number of clusters (k)",
+          ylab = "Inertia (within-cluster sum of squares)",
+          main = "Elbow Method for Optimal k Selection",
+          las = 1
         )
 
-        if (interactive()) {
-          plot(gap_stat, main = "Gap statistic method (variable clustering)")
-          abline(v = optimal_k, col = "red", lty = 2)
-        }
+        # Draw the reference line
+        lines(c(k_range[1], k_range[n_points]),
+          c(inertias[1], inertias[n_points]),
+          col = "gray50", lty = 2, lwd = 1
+        )
 
-        message("\u2713 Optimal number of clusters (gap statistic): ", optimal_k)
-        return(optimal_k)
-      } else {
-        stop("Method not recognized. Use 'silhouette' or 'gap'.")
+        # Mark the elbow
+        points(k_optimal, inertias[elbow_idx],
+          col = "red", pch = 19, cex = 2
+        )
+        abline(v = k_optimal, col = "red", lty = 2, lwd = 2)
+        text(k_optimal, max(inertias) * 0.9,
+          labels = paste("Optimal k =", k_optimal),
+          pos = 4, col = "red", font = 2
+        )
+
+        grid(col = "gray90", lty = "dotted")
       }
+
+      message(sprintf("✓ Elbow method selected k = %d", k_optimal))
+      return(k_optimal)
     }
   )
 )
