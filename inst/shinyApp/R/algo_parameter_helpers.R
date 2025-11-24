@@ -22,15 +22,13 @@ prepare_algo_parameters <- function(algorithm, input) {
 
     params$max_k <- if (!is.null(input$max_k)) input$max_k else 10
   } else if (algorithm == "hac") {
-    # Ici mettre les options spécifiques pour HAC
     params$k <- if (!is.null(input$hac_k)) input$hac_k else 3
-    # params$linkage <- if (!is.null(input$hac_linkage)) input$hac_linkage else "average"
-    # params$cut_height <- if (!is.null(input$hac_cut)) input$hac_cut else NULL
+    params$linkage_method <- if (!is.null(input$hac_linkage)) input$hac_linkage else "ward.D2"
   } else if (algorithm == "acm") {
-    # Ici mettre les options spécifiques pour ACM
     params$k <- if (!is.null(input$acm_k)) input$acm_k else 3
-    # params$affinity <- if (!is.null(input$acm_affinity)) input$acm_affinity else "cosine"
-    # params$threshold <- if (!is.null(input$acm_threshold)) input$acm_threshold else 0.5
+    params$max_iter <- if (!is.null(input$acm_max_iter)) input$acm_max_iter else 30
+    params$tol <- if (!is.null(input$acm_tol)) input$acm_tol else 1e-4
+    params$verbose <- if (!is.null(input$acm_verbose)) input$acm_verbose else FALSE
   }
 
   return(params)

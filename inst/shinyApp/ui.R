@@ -64,23 +64,8 @@ fluidPage(
 
             # Step 3: Clustering Parameters
             h4("3️⃣ Clustering Settings"),
-            selectInput("algorithm",
-                "Algorithm:",
-                choices = c(
-                    "K-Means" = "kmeans",
-                    "HAC" = "hac",
-                    "ACM" = "acm"
-                ),
-                selected = "kmeans"
-            ),
-            selectInput("method",
-                "Distance Method:",
-                choices = c(
-                    "Correlation" = "correlation",
-                    "Euclidean" = "euclidean"
-                ),
-                selected = "correlation"
-            ),
+            uiOutput("algorithm_selector"),
+            uiOutput("method_selector"),
             # Algorithm-specific options rendered from server
             uiOutput("algo_options"),
             hr(),

@@ -67,19 +67,35 @@ run_clustering_workflow <- function(X, algorithm = "kmeans", params = list()) {
   # Create and fit final model
   model <- create_model(
     algorithm = algorithm,
-    params = list(
-      k = k_to_use,
-      method = method,
-      nstart = nstart,
-      seed = seed
+    params = c(
+      list(k = k_to_use, method = method, nstart = nstart, seed = seed),
+      params[!names(params) %in% c("k", "method", "nstart", "seed", "auto_k", "max_k")]
     )
   )
 
+  # Fit the model with data (uniform interface for all algorithms)
   model$fit(X)
+
+  # Extract and format clusters
+  clusters_formatted <- model$clusters
+
+  # Convert clusters to named list format if needed
+  if (algorithm == "acm") {
+    # ACM returns a vector of cluster assignments
+    clusters_formatted <- split(names(X), model$clusters)
+    names(clusters_formatted) <- paste0("Cluster_", seq_along(clusters_formatted))
+  } else if (algorithm == "hac") {
+    # HAC returns a list, ensure proper naming
+    if (!is.null(names(clusters_formatted))) {
+      names(clusters_formatted) <- paste0("Cluster_", names(clusters_formatted))
+    } else {
+      names(clusters_formatted) <- paste0("Cluster_", seq_along(clusters_formatted))
+    }
+  }
 
   # Extract results
   results <- list(
-    clusters = model$clusters,
+    clusters = clusters_formatted,
     k = k_to_use,
     algorithm = algorithm,
     method = method,

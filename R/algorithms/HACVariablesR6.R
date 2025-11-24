@@ -8,7 +8,7 @@ HACVariablesR6 <- R6::R6Class(
     public = list(
         # --- PROPRIÉTÉS (Champs) ---
         k = NULL, # Nombre de clusters désiré (pour couper l'arbre)
-        distance_method = NULL, # Méthode de calcul de distance ("correlation" ou "euclidean")
+        method = NULL, # Méthode de calcul de distance ("correlation" ou "euclidean")
         linkage_method = NULL, # Méthode d'agrégation (linkage) pour hclust ("ward.D2", "complete", etc.)
         model = NULL, # Stocke l'objet hclust résultant du fit
         clusters = NULL, # Liste nommée des variables par cluster
@@ -16,10 +16,10 @@ HACVariablesR6 <- R6::R6Class(
         data_fit = NULL, # Données (normalisées et transposées) utilisées pour le fit
 
         # --- CONSTRUCTEUR ---
-        initialize = function(k = 2, distance_method = "correlation", linkage_method = "ward.D2") {
+        initialize = function(k = 2, method = "correlation", linkage_method = "ward.D2") {
             # Le constructeur définit les paramètres initiaux
             self$k <- k
-            self$distance_method <- distance_method
+            self$method <- method
             self$linkage_method <- linkage_method
         },
 
@@ -34,10 +34,10 @@ HACVariablesR6 <- R6::R6Class(
             X_norm <- scale(X)
 
             # 3. Calculer la Matrice de Distance entre les VARIABLES
-            if (self$distance_method == "correlation") {
+            if (self$method == "correlation") {
                 # Distance basée sur la corrélation absolue (1 - |r|)
                 dist_mat <- stats::as.dist(1 - abs(stats::cor(X_norm)))
-            } else if (self$distance_method == "euclidean") {
+            } else if (self$method == "euclidean") {
                 # Distance euclidienne sur la transposée (variables comme lignes)
                 dist_mat <- stats::dist(t(X_norm))
             } else {
@@ -154,7 +154,7 @@ HACVariablesR6 <- R6::R6Class(
             cat("--------------------\n")
             cat(
                 "k (Coupe):", self$k,
-                "| Distance:", self$distance_method,
+                "| Distance:", self$method,
                 "| Lien:", self$linkage_method,
                 "| Ajusté:", self$fitted, "\n"
             )
@@ -172,7 +172,7 @@ HACVariablesR6 <- R6::R6Class(
             cat("----------------------\n")
             cat("Paramètres du Modèle:\n")
             cat("  Nombre de clusters (k):", self$k, "\n")
-            cat("  Méthode de distance:", self$distance_method, "\n")
+            cat("  Méthode de distance:", self$method, "\n")
             cat("  Méthode de lien:", self$linkage_method, "\n")
             cat("  Statut:", ifelse(self$fitted, "Ajusté", "Non Ajusté"), "\n")
 

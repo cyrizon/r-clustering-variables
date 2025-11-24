@@ -7,44 +7,6 @@ library(shiny)
 library(DT)
 library(R6)
 
-# Load algorithm classes with error handling
-has_hac <- FALSE
-has_acm <- FALSE
-tryCatch(
-    {
-        source("../../R/algorithms/KMeansVariablesR6.R", local = TRUE)
-    },
-    error = function(e) {
-        message(paste("Failed to load KMeans class:", e$message))
-    }
-)
-tryCatch(
-    {
-        source("../../R/algorithms/HACVariablesR6.R", local = TRUE)
-        has_hac <<- TRUE
-    },
-    error = function(e) {
-        has_hac <<- FALSE
-    }
-)
-tryCatch(
-    {
-        source("../../R/algorithms/ACMVariablesR6.R", local = TRUE)
-        has_acm <<- TRUE
-    },
-    error = function(e) {
-        has_acm <<- FALSE
-    }
-)
-
-# Load helper modules
-source("../../R/alg_helpers.R", local = TRUE)
-source("R/data_handlers.R", local = TRUE)
-source("R/clustering_logic.R", local = TRUE)
-source("R/visualizations.R", local = TRUE)
-source("R/algo_parameter_helpers.R", local = TRUE)
-source("R/predictions.R", local = TRUE)
-
 # Server function
 function(input, output, session) {
     # =========================================================================
@@ -53,6 +15,8 @@ function(input, output, session) {
     rv <- reactiveValues(
         data = NULL, # Uploaded data
         numeric_vars = NULL, # Available numeric variables
+        categorical_vars = NULL, # Available categorical variables
+        dataset_type = NULL, # Type of dataset ("numeric", "categorical", "mixed")
         model = NULL, # Fitted K-means model
         results = NULL, # Clustering results
         optimal_k = NULL, # Auto-detected optimal k
@@ -75,6 +39,8 @@ function(input, output, session) {
             {
                 rv$data <- load_example_data("../../tests/testthat/College_Data")
                 rv$numeric_vars <- extract_numeric_vars(rv$data)
+                rv$categorical_vars <- extract_categorical_vars(rv$data)
+                rv$dataset_type <- detect_dataset_type(rv$data)
                 showNotification("✅ Example data loaded successfully!",
                     type = "message", duration = 3
                 )
@@ -102,22 +68,25 @@ function(input, output, session) {
                     sep = sep_to_use
                 )
 
-                # Extract numeric variables
+                # Extract all types of variables
                 rv$numeric_vars <- extract_numeric_vars(rv$data)
+                rv$categorical_vars <- extract_categorical_vars(rv$data)
+                rv$dataset_type <- detect_dataset_type(rv$data)
 
-                if (length(rv$numeric_vars) == 0) {
-                    showNotification("⚠️ No numeric variables found in the dataset!",
-                        type = "warning", duration = 5
-                    )
-                } else {
-                    showNotification(
-                        paste0(
-                            "✅ Data loaded: ", nrow(rv$data), " rows, ",
-                            length(rv$numeric_vars), " numeric variables"
-                        ),
-                        type = "message", duration = 3
-                    )
-                }
+                # Build informative message
+                n_num <- length(rv$numeric_vars)
+                n_cat <- length(rv$categorical_vars)
+
+                msg_parts <- c()
+                if (n_num > 0) msg_parts <- c(msg_parts, paste(n_num, "numeric"))
+                if (n_cat > 0) msg_parts <- c(msg_parts, paste(n_cat, "categorical"))
+
+                msg <- paste0(
+                    "✅ Data loaded: ", nrow(rv$data), " rows, ",
+                    paste(msg_parts, collapse = " + "), " variables"
+                )
+
+                showNotification(msg, type = "message", duration = 3)
             },
             error = function(e) {
                 showNotification(paste("❌ Error loading file:", e$message),
@@ -131,15 +100,88 @@ function(input, output, session) {
     # UI OUTPUTS - Dynamic elements
     # =========================================================================
 
+    # Algorithm selector (dynamic based on data type)
+    output$algorithm_selector <- renderUI({
+        if (is.null(rv$dataset_type)) {
+            # Default before data is loaded
+            return(selectInput("algorithm",
+                "Algorithm:",
+                choices = c(
+                    "K-Means" = "kmeans",
+                    "HAC" = "hac",
+                    "ACM" = "acm"
+                ),
+                selected = "kmeans"
+            ))
+        }
+
+        # Filter algorithms based on dataset type
+        if (rv$dataset_type == "numeric") {
+            choices <- c("K-Means" = "kmeans", "HAC" = "hac")
+            default <- "kmeans"
+        } else if (rv$dataset_type == "categorical") {
+            choices <- c("ACM" = "acm")
+            default <- "acm"
+        } else {
+            # Mixed: show all with warning
+            choices <- c("K-Means" = "kmeans", "HAC" = "hac", "ACM" = "acm")
+            default <- "kmeans"
+        }
+
+        selectInput("algorithm",
+            "Algorithm:",
+            choices = choices,
+            selected = default
+        )
+    })
+
+    # Method selector (only for numeric algorithms)
+    output$method_selector <- renderUI({
+        algo <- input$algorithm
+        if (is.null(algo)) algo <- "kmeans"
+
+        # ACM doesn't use correlation/euclidean distance
+        if (algo == "acm") {
+            return(NULL)
+        }
+
+        selectInput("method",
+            "Distance Method:",
+            choices = c(
+                "Correlation" = "correlation",
+                "Euclidean" = "euclidean"
+            ),
+            selected = "correlation"
+        )
+    })
+
     # Variable selector
     output$variable_selector <- renderUI({
-        req(rv$numeric_vars)
+        req(rv$data)
+
+        # Determine which variables to show based on selected algorithm
+        algo <- input$algorithm
+        if (is.null(algo)) algo <- "kmeans"
+
+        if (algo == "acm") {
+            # ACM: only categorical variables
+            available_vars <- rv$categorical_vars
+            if (length(available_vars) == 0) {
+                return(helpText("⚠️ No categorical variables available for ACM"))
+            }
+        } else {
+            # KMeans/HAC: only numeric variables
+            available_vars <- rv$numeric_vars
+            if (length(available_vars) == 0) {
+                return(helpText("⚠️ No numeric variables available for this algorithm"))
+            }
+        }
 
         checkboxGroupInput(
             "selected_vars",
             "Select variables to cluster:",
-            choices = rv$numeric_vars,
-            selected = rv$numeric_vars
+            choices = available_vars,
+            selected = available_vars
         )
     })
 
@@ -185,14 +227,50 @@ function(input, output, session) {
             )
         } else if (input$algorithm == "hac") {
             tagList(
-                helpText("Ici mettre les options spécifiques pour HAC (par ex. linkage, cut height)"),
-                # selectInput("hac_linkage", "Linkage:", choices = c("complete","average","single"), selected = "average"),
-                # numericInput("hac_cut", "Cut height:", value = NA)
+                numericInput("hac_k",
+                    "Number of Clusters (k):",
+                    value = 3,
+                    min = 2,
+                    max = 10,
+                    step = 1
+                ),
+                selectInput("hac_linkage",
+                    "Linkage Method:",
+                    choices = c(
+                        "Ward's Method" = "ward.D2",
+                        "Complete" = "complete",
+                        "Average" = "average",
+                        "Single" = "single"
+                    ),
+                    selected = "ward.D2"
+                ),
+                helpText("📝 HAC uses hierarchical clustering with the specified linkage method")
             )
         } else if (input$algorithm == "acm") {
             tagList(
-                helpText("Ici mettre les options spécifiques pour ACM (par ex. affinity, thresholds)"),
-                # selectInput("acm_affinity", "Affinity:", choices = c("euclidean","cosine"), selected = "cosine")
+                numericInput("acm_k",
+                    "Number of Clusters (k):",
+                    value = 3,
+                    min = 2,
+                    max = 10,
+                    step = 1
+                ),
+                numericInput("acm_max_iter",
+                    "Maximum iterations:",
+                    value = 30,
+                    min = 10,
+                    max = 100,
+                    step = 1
+                ),
+                numericInput("acm_tol",
+                    "Convergence tolerance:",
+                    value = 1e-4,
+                    min = 1e-6,
+                    max = 1e-2,
+                    step = 1e-5
+                ),
+                checkboxInput("acm_verbose", "Show iteration details", FALSE),
+                helpText("📝 ACM uses Multiple Correspondence Analysis for categorical variables")
             )
         } else {
             helpText("Unknown algorithm")
@@ -483,6 +561,8 @@ function(input, output, session) {
     observeEvent(input$reset, {
         rv$data <- NULL
         rv$numeric_vars <- NULL
+        rv$categorical_vars <- NULL
+        rv$dataset_type <- NULL
         rv$model <- NULL
         rv$results <- NULL
         rv$optimal_k <- NULL

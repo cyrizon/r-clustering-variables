@@ -20,21 +20,28 @@ create_model <- function(algorithm = "kmeans", params = list()) {
 
   if (alg == "hac") {
     if (!exists("HACVariablesR6", mode = "any")) {
-      stop("HACVariablesR6 class not found. Ici mettre les options pour HAC.")
+      stop("HACVariablesR6 class not found. Make sure the implementation is loaded.")
     }
+    linkage_method <- if (!is.null(params$linkage_method)) params$linkage_method else "ward.D2"
     return(HACVariablesR6$new(
       k = k,
-      method = method
+      method = method,
+      linkage_method = linkage_method
     ))
   }
 
   if (alg == "acm") {
     if (!exists("ACMVariablesR6", mode = "any")) {
-      stop("ACMVariablesR6 class not found. Ici mettre les options pour ACM.")
+      stop("ACMVariablesR6 class not found. Make sure the implementation is loaded.")
     }
+    max_iter <- if (!is.null(params$max_iter)) params$max_iter else 30
+    tol <- if (!is.null(params$tol)) params$tol else 1e-4
+    verbose <- if (!is.null(params$verbose)) params$verbose else FALSE
     return(ACMVariablesR6$new(
       k = k,
-      method = method
+      max_iter = max_iter,
+      tol = tol,
+      verbose = verbose
     ))
   }
 

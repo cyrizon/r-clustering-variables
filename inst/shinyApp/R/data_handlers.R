@@ -4,12 +4,12 @@
 detect_separator <- function(file_path) {
   # Read first few lines
   lines <- readLines(file_path, n = 5, warn = FALSE)
-  
+
   # Count separators
   comma_count <- sum(grepl(",", lines))
   semicolon_count <- sum(grepl(";", lines))
   tab_count <- sum(grepl("\t", lines))
-  
+
   # Return most common
   counts <- c("," = comma_count, ";" = semicolon_count, "\t" = tab_count)
   return(names(counts)[which.max(counts)])
@@ -57,7 +57,7 @@ load_uploaded_data <- function(file_path, header = TRUE, sep = NULL) {
     sep <- detect_separator(file_path)
     message(paste("Auto-detected separator:", sep))
   }
-  
+
   data <- read.table(
     file_path,
     header = header,
@@ -72,4 +72,27 @@ load_uploaded_data <- function(file_path, header = TRUE, sep = NULL) {
 #' @return character vector of numeric column names
 extract_numeric_vars <- function(data) {
   names(data)[sapply(data, is.numeric)]
+}
+
+#' Extract categorical variable names from dataset
+#' @param data data.frame
+#' @return character vector of categorical column names
+extract_categorical_vars <- function(data) {
+  names(data)[sapply(data, function(x) is.factor(x) || is.character(x))]
+}
+
+#' Detect dataset type based on variable composition
+#' @param data data.frame
+#' @return character "numeric", "categorical", or "mixed"
+detect_dataset_type <- function(data) {
+  n_numeric <- length(extract_numeric_vars(data))
+  n_categorical <- length(extract_categorical_vars(data))
+
+  if (n_numeric > 0 && n_categorical == 0) {
+    return("numeric")
+  } else if (n_categorical > 0 && n_numeric == 0) {
+    return("categorical")
+  } else {
+    return("mixed")
+  }
 }
