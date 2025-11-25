@@ -153,7 +153,15 @@ fluidPage(
                     )
                 ),
 
-                # --- TAB 4: Prediction ---
+                # --- TAB 4: Metrics ---
+                tabPanel(
+                    "📐 Metrics",
+                    br(),
+                    h3("Clustering Metrics"),
+                    uiOutput("metrics_ui")
+                ),
+
+                # --- TAB 5: Prediction ---
                 tabPanel(
                     "🔮 Predict New Variables",
                     br(),
@@ -175,7 +183,7 @@ fluidPage(
                     uiOutput("prediction_results")
                 ),
 
-                # --- TAB 5: Help ---
+                # --- TAB 6: Help ---
                 tabPanel(
                     "ℹ️ Help",
                     br(),
@@ -185,42 +193,52 @@ fluidPage(
                         h4("Step 1: Load Your Data"),
                         p("• Upload a CSV or TSV file containing your dataset"),
                         p("• Or click 'Load Example Data' to use the College dataset"),
-                        p("• Make sure your data contains numeric variables")
+                        p("• Supports numeric variables (K-Means, HAC) and categorical variables (ACM)"),
+                        p("• Auto-detection of separator and data type")
                     ),
                     div(
                         class = "info-box",
                         h4("Step 2: Select Variables"),
                         p("• Choose which variables to include in the clustering"),
                         p("• You can select all or a subset of variables"),
-                        p("• Only numeric variables can be clustered")
+                        p("• Variable selection adapts automatically based on the chosen algorithm")
                     ),
                     div(
                         class = "info-box",
-                        h4("Step 3: Configure Clustering"),
-                        p("• Distance Method:"),
-                        p("  - Correlation: Groups variables with similar patterns"),
-                        p("  - Euclidean: Groups variables with similar values"),
-                        p("• Number of Clusters (k): How many groups to create"),
-                        p("• Auto-detect optimal k: Automatically find the best k")
+                        h4("Step 3: Choose Algorithm & Configure"),
+                        p("Three algorithms are available:"),
+                        p(strong("K-Means:"), " Iterative clustering for numeric variables"),
+                        p("  - Distance: Correlation (pattern similarity) or Euclidean"),
+                        p("  - K-Means++ initialization with multi-starts (nstart)"),
+                        p("  - Auto-detect optimal k: Elbow method with distance-to-line detection"),
+                        p("  - Set random seed for reproducibility"),
+                        p(strong("HAC (Hierarchical Agglomerative Clustering):"), " Tree-based clustering for numeric variables"),
+                        p("  - Distance: Correlation or Euclidean"),
+                        p("  - Linkage: Ward's method, Complete, Average, or Single"),
+                        p("  - Cut tree at specified k to obtain clusters"),
+                        p(strong("ACM (Multiple Correspondence Analysis):"), " Clustering for categorical variables"),
+                        p("  - Iterative optimization based on η² (eta-squared) measure"),
+                        p("  - Convergence controlled by max iterations and tolerance"),
+                        p("  - Q criterion tracks overall clustering quality")
                     ),
                     div(
                         class = "info-box",
                         h4("Step 4: Run and Analyze"),
                         p("• Click 'Run Clustering' to perform the analysis"),
-                        p("• View results in the Results tab"),
-                        p("• Explore visualizations in the Visualizations tab"),
-                        p("• Download results as CSV or plots as images")
+                        p("• Results tab: View cluster assignments and model summary"),
+                        p("• Visualizations tab: Cluster sizes, distribution, correlation/η² heatmaps"),
+                        p("• Metrics tab: Homogeneity, separation, silhouette, cophenetic correlation (HAC), Q criterion (ACM)"),
+                        p("• Predict tab: Classify new variables into existing clusters"),
+                        p("• Export: Download results as CSV or plots as images")
                     ),
                     div(
                         class = "info-box",
-                        h4("About K-Means Variable Clustering"),
-                        p("Unlike traditional K-means which clusters observations (rows),
-                          this algorithm clusters VARIABLES (columns). It groups variables
-                          that behave similarly across observations."),
-                        p("Use cases:"),
-                        p("• Data reduction: Identify redundant variables"),
-                        p("• Feature selection: Select representative variables from each cluster"),
-                        p("• Data exploration: Understand variable relationships")
+                        h4("Interpreting Metrics"),
+                        p(strong("Homogeneity:"), " Cohesion within clusters (higher = more similar variables)"),
+                        p(strong("Separation:"), " Distance between clusters (lower = better separated)"),
+                        p(strong("Silhouette:"), " Quality of assignments (>0.5 good, <0 poor)"),
+                        p(strong("Cophenetic (HAC):"), " Fidelity of dendrogram structure (closer to 1 = better)"),
+                        p(strong("Q criterion (ACM):"), " Overall quality of categorical clustering (higher = better)")
                     )
                 )
             )

@@ -23,6 +23,17 @@ function(input, output, session) {
         k_plot_data = NULL # Data for k selection plot
     )
 
+    # Disable result tabs and buttons at startup
+    observe({
+        shinyjs::disable(selector = "a[data-value='🎯 Results']")
+        shinyjs::disable(selector = "a[data-value='📈 Visualizations']")
+        shinyjs::disable(selector = "a[data-value='📐 Metrics']")
+        shinyjs::disable(selector = "a[data-value='🔮 Predict New Variables']")
+        shinyjs::disable("run_clustering")
+        shinyjs::disable("download_results")
+        shinyjs::disable("download_plot")
+    })
+
     # Reactive: selected dataset (centralized)
     selected_data <- reactive({
         req(rv$data, input$selected_vars)
@@ -41,6 +52,18 @@ function(input, output, session) {
                 rv$numeric_vars <- extract_numeric_vars(rv$data)
                 rv$categorical_vars <- extract_categorical_vars(rv$data)
                 rv$dataset_type <- detect_dataset_type(rv$data)
+                # Disable result tabs when new data is loaded
+                shinyjs::disable(selector = "a[data-value='🎯 Results']")
+                shinyjs::disable(selector = "a[data-value='📈 Visualizations']")
+                shinyjs::disable(selector = "a[data-value='📐 Metrics']")
+                shinyjs::disable(selector = "a[data-value='🔮 Predict New Variables']")
+                # Enable run_clustering button when data is loaded
+                shinyjs::enable("run_clustering")
+                # Disable downloads until clustering is run
+                shinyjs::disable("download_results")
+                shinyjs::disable("download_plot")
+                # Switch to Data tab immediately
+                updateTabsetPanel(session, "main_tabs", selected = "📄 Data")
                 showNotification("✅ Example data loaded successfully!",
                     type = "message", duration = 3
                 )
@@ -85,6 +108,19 @@ function(input, output, session) {
                     "✅ Data loaded: ", nrow(rv$data), " rows, ",
                     paste(msg_parts, collapse = " + "), " variables"
                 )
+
+                # Disable result tabs when new data is loaded
+                shinyjs::disable(selector = "a[data-value='🎯 Results']")
+                shinyjs::disable(selector = "a[data-value='📈 Visualizations']")
+                shinyjs::disable(selector = "a[data-value='📐 Metrics']")
+                shinyjs::disable(selector = "a[data-value='🔮 Predict New Variables']")
+                # Enable run_clustering button when data is loaded
+                shinyjs::enable("run_clustering")
+                # Disable downloads until clustering is run
+                shinyjs::disable("download_results")
+                shinyjs::disable("download_plot")
+                # Switch to Data tab immediately
+                updateTabsetPanel(session, "main_tabs", selected = "📄 Data")
 
                 showNotification(msg, type = "message", duration = 3)
             },
@@ -354,6 +390,15 @@ function(input, output, session) {
 
                     incProgress(1, detail = "Done!")
 
+                    # Enable result tabs after successful clustering
+                    shinyjs::enable(selector = "a[data-value='🎯 Results']")
+                    shinyjs::enable(selector = "a[data-value='📈 Visualizations']")
+                    shinyjs::enable(selector = "a[data-value='📐 Metrics']")
+                    shinyjs::enable(selector = "a[data-value='🔮 Predict New Variables']")
+                    # Enable download buttons after successful clustering
+                    shinyjs::enable("download_results")
+                    shinyjs::enable("download_plot")
+
                     showNotification(
                         paste0("✅ Clustering completed! (", rv$results$algorithm, ") ", rv$results$k, " clusters found."),
                         type = "message", duration = 4
@@ -438,10 +483,16 @@ function(input, output, session) {
         plot_cluster_distribution(rv$results$clusters)
     })
 
-    # Correlation heatmap
+    # Correlation heatmap or eta² heatmap for ACM
     output$plot_heatmap <- renderPlot({
         req(rv$data, input$selected_vars, rv$model)
-        plot_correlation_heatmap(rv$data, rv$results$clusters, input$selected_vars)
+        if (!is.null(rv$results$algorithm) && rv$results$algorithm == "acm") {
+            # ACM: plot eta² heatmap
+            source("R/visualizations.R", local = TRUE)
+            plot_eta2_heatmap(rv$model)
+        } else {
+            plot_correlation_heatmap(rv$data, rv$results$clusters, input$selected_vars)
+        }
     })
 
     # K selection plot
@@ -555,6 +606,149 @@ function(input, output, session) {
     )
 
     # =========================================================================
+    # METRICS TAB OUTPUT
+    # =========================================================================
+    output$metrics_ui <- renderUI({
+        req(rv$results, rv$data, input$selected_vars)
+        # Load metrics module
+        source("R/metrics.R", local = TRUE)
+        X <- rv$data[, input$selected_vars, drop = FALSE]
+        clusters <- rv$results$clusters
+        method <- rv$results$method
+        metrics <- compute_simple_metrics(X, clusters, method)
+        # Cophenetic (HAC) or Q (ACM)
+        extra_metric <- NULL
+        if (rv$results$algorithm == "hac" && !is.null(rv$model$model)) {
+            extra_metric <- tryCatch(
+                {
+                    compute_cophenetic(rv$model$model)
+                },
+                error = function(e) NA
+            )
+        } else if (rv$results$algorithm == "acm") {
+            extra_metric <- tryCatch(
+                {
+                    extract_acm_Q(rv$model)
+                },
+                error = function(e) NA
+            )
+        }
+        tagList(
+            h4("Simple Clustering Metrics"),
+            fluidRow(
+                column(
+                    6,
+                    tags$b("Homogeneity (intra-cluster):"),
+                    verbatimTextOutput("metric_homogeneity"),
+                    tags$div(
+                        class = "metric-info",
+                        "→ Mesure la cohésion des variables dans chaque cluster. Plus proche de 1 = variables très similaires. NA si cluster singleton."
+                    )
+                ),
+                column(
+                    6,
+                    tags$b("Separation (inter-cluster):"),
+                    verbatimTextOutput("metric_separation"),
+                    tags$div(
+                        class = "metric-info",
+                        "→ Mesure la différence entre clusters. Plus faible = clusters bien séparés."
+                    )
+                )
+            ),
+            br(),
+            tags$b("Mean Silhouette (variables):"),
+            verbatimTextOutput("metric_silhouette"),
+            tags$div(
+                class = "metric-info",
+                "→ Indique la qualité d’affectation des variables à leur cluster. >0.5 = bonne séparation, <0 = variables mal classées."
+            ),
+            if (!is.null(extra_metric)) {
+                if (rv$results$algorithm == "hac") {
+                    tagList(
+                        tags$b("Cophenetic correlation (HAC):"),
+                        verbatimTextOutput("metric_cophenetic"),
+                        tags$div(
+                            class = "metric-info",
+                            "→ Corrélation entre distances originales et structure du dendrogramme. Proche de 1 = structure fidèle. NA si non calculable."
+                        )
+                    )
+                } else if (rv$results$algorithm == "acm") {
+                    tagList(
+                        tags$b("Q criterion (ACM):"),
+                        verbatimTextOutput("metric_acmQ"),
+                        tags$div(
+                            class = "metric-info",
+                            "→ Qualité globale de la partition ACM (somme des η²). Plus élevé = clusters plus explicatifs."
+                        )
+                    )
+                }
+            }
+        )
+    })
+
+    output$metric_homogeneity <- renderText({
+        req(rv$results, rv$data, input$selected_vars)
+        source("R/metrics.R", local = TRUE)
+        X <- rv$data[, input$selected_vars, drop = FALSE]
+        clusters <- rv$results$clusters
+        method <- rv$results$method
+        metrics <- compute_simple_metrics(X, clusters, method)
+        if (!is.null(metrics$message)) {
+            metrics$message
+        } else {
+            paste(round(metrics$homogeneity, 3), collapse = ", ")
+        }
+    })
+    output$metric_separation <- renderText({
+        req(rv$results, rv$data, input$selected_vars)
+        source("R/metrics.R", local = TRUE)
+        X <- rv$data[, input$selected_vars, drop = FALSE]
+        clusters <- rv$results$clusters
+        method <- rv$results$method
+        metrics <- compute_simple_metrics(X, clusters, method)
+        if (!is.null(metrics$message)) {
+            metrics$message
+        } else {
+            round(metrics$separation, 3)
+        }
+    })
+    output$metric_silhouette <- renderText({
+        req(rv$results, rv$data, input$selected_vars)
+        source("R/metrics.R", local = TRUE)
+        X <- rv$data[, input$selected_vars, drop = FALSE]
+        clusters <- rv$results$clusters
+        method <- rv$results$method
+        metrics <- compute_simple_metrics(X, clusters, method)
+        if (!is.null(metrics$message)) {
+            metrics$message
+        } else {
+            round(metrics$silhouette_mean, 3)
+        }
+    })
+    output$metric_cophenetic <- renderText({
+        req(rv$results, rv$model$model)
+        source("R/metrics.R", local = TRUE)
+        val <- tryCatch(
+            {
+                compute_cophenetic(rv$model$model)
+            },
+            error = function(e) NA
+        )
+        round(val, 3)
+    })
+    output$metric_acmQ <- renderText({
+        req(rv$results, rv$model)
+        source("R/metrics.R", local = TRUE)
+        val <- tryCatch(
+            {
+                extract_acm_Q(rv$model)
+            },
+            error = function(e) NA
+        )
+        round(val, 3)
+    })
+
+    # =========================================================================
     # RESET FUNCTIONALITY
     # =========================================================================
 
@@ -567,6 +761,19 @@ function(input, output, session) {
         rv$results <- NULL
         rv$optimal_k <- NULL
         rv$k_plot_data <- NULL
+
+        # Reset file input UI
+        shinyjs::reset("data_file")
+
+        # Disable result tabs on reset
+        shinyjs::disable(selector = "a[data-value='🎯 Results']")
+        shinyjs::disable(selector = "a[data-value='📈 Visualizations']")
+        shinyjs::disable(selector = "a[data-value='📐 Metrics']")
+        shinyjs::disable(selector = "a[data-value='🔮 Predict New Variables']")
+        # Disable buttons on reset
+        shinyjs::disable("run_clustering")
+        shinyjs::disable("download_results")
+        shinyjs::disable("download_plot")
 
         updateTabsetPanel(session, "main_tabs", selected = "📄 Data")
 
