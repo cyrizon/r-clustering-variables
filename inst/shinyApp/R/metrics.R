@@ -76,15 +76,15 @@ compute_simple_metrics <- function(X, clusters, method = "correlation") {
 }
 
 #' Compute cophenetic correlation for HAC
-#' @param hac_model fitted HACVariablesR6$model
+#' @param hac_model fitted HACVariablesR6 object (not just $model)
 #' @return cophenetic correlation
 compute_cophenetic <- function(hac_model) {
-    if (is.null(hac_model)) {
+    if (is.null(hac_model) || is.null(hac_model$model) || is.null(hac_model$dist_matrix)) {
         return(NA)
     }
-    d <- as.dist(hac_model$dist.method)
-    cophen <- cophenetic(hac_model)
-    cor(d, cophen)
+    # Utiliser la matrice de distance originale stockée
+    cophen <- cophenetic(hac_model$model)
+    cor(hac_model$dist_matrix, cophen)
 }
 
 #' Extract Q for ACM

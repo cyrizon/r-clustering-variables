@@ -48,6 +48,12 @@ function(input, output, session) {
     observeEvent(input$load_example, {
         tryCatch(
             {
+                # Reset all results before loading new data
+                rv$model <- NULL
+                rv$results <- NULL
+                rv$optimal_k <- NULL
+                rv$k_plot_data <- NULL
+
                 rv$data <- load_example_data("../../tests/testthat/College_Data")
                 rv$numeric_vars <- extract_numeric_vars(rv$data)
                 rv$categorical_vars <- extract_categorical_vars(rv$data)
@@ -82,6 +88,12 @@ function(input, output, session) {
 
         tryCatch(
             {
+                # Reset all results before loading new data
+                rv$model <- NULL
+                rv$results <- NULL
+                rv$optimal_k <- NULL
+                rv$k_plot_data <- NULL
+
                 # Use auto-detect if enabled, otherwise use manual selection
                 sep_to_use <- if (input$auto_sep) NULL else input$sep
 
@@ -618,10 +630,10 @@ function(input, output, session) {
         metrics <- compute_simple_metrics(X, clusters, method)
         # Cophenetic (HAC) or Q (ACM)
         extra_metric <- NULL
-        if (rv$results$algorithm == "hac" && !is.null(rv$model$model)) {
+        if (rv$results$algorithm == "hac" && !is.null(rv$model)) {
             extra_metric <- tryCatch(
                 {
-                    compute_cophenetic(rv$model$model)
+                    compute_cophenetic(rv$model)
                 },
                 error = function(e) NA
             )
@@ -726,15 +738,19 @@ function(input, output, session) {
         }
     })
     output$metric_cophenetic <- renderText({
-        req(rv$results, rv$model$model)
+        req(rv$results, rv$model)
         source("R/metrics.R", local = TRUE)
         val <- tryCatch(
             {
-                compute_cophenetic(rv$model$model)
+                compute_cophenetic(rv$model)
             },
             error = function(e) NA
         )
-        round(val, 3)
+        if (is.na(val)) {
+            "NA"
+        } else {
+            round(val, 3)
+        }
     })
     output$metric_acmQ <- renderText({
         req(rv$results, rv$model)

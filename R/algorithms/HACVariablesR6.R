@@ -11,6 +11,7 @@ HACVariablesR6 <- R6::R6Class(
         method = NULL, # Méthode de calcul de distance ("correlation" ou "euclidean")
         linkage_method = NULL, # Méthode d'agrégation (linkage) pour hclust ("ward.D2", "complete", etc.)
         model = NULL, # Stocke l'objet hclust résultant du fit
+        dist_matrix = NULL, # Matrice de distance utilisée pour hclust
         clusters = NULL, # Liste nommée des variables par cluster
         fitted = FALSE, # Statut du fit du modèle
         data_fit = NULL, # Données (normalisées et transposées) utilisées pour le fit
@@ -46,6 +47,8 @@ HACVariablesR6 <- R6::R6Class(
 
             # Stocke les données normalisées transposées pour un usage ultérieur (p. ex. predict)
             self$data_fit <- t(X_norm)
+            # Stocke la matrice de distance pour le calcul de la corrélation cophénétique
+            self$dist_matrix <- dist_mat
 
             # 4. Appliquer HAC (hclust)
             hcl <- stats::hclust(dist_mat, method = self$linkage_method)
