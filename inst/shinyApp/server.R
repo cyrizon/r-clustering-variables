@@ -676,6 +676,15 @@ function(input, output, session) {
                 error = function(e) NA
             )
         }
+        # Adaptation des descriptions selon la méthode
+        if (method == "correlation") {
+            homog_text <- "→ Moyenne des corrélations intra-cluster. Plus proche de 1 = variables très similaires. NA si cluster singleton."
+            sep_text <- "→ Moyenne des corrélations inter-cluster. Plus faible = clusters bien séparés."
+        } else {
+            homog_text <- "→ Moyenne des distances euclidiennes intra-cluster (données standardisées). Plus faible = cohésion élevée. NA si cluster singleton."
+            sep_text <- "→ Moyenne des distances euclidiennes inter-cluster (données standardisées). Plus élevé = meilleure séparation."
+        }
+
         tagList(
             h4("Simple Clustering Metrics"),
             fluidRow(
@@ -685,7 +694,7 @@ function(input, output, session) {
                     verbatimTextOutput("metric_homogeneity"),
                     tags$div(
                         class = "metric-info",
-                        "→ Mesure la cohésion des variables dans chaque cluster. Plus proche de 1 = variables très similaires. NA si cluster singleton."
+                        homog_text
                     )
                 ),
                 column(
@@ -694,7 +703,7 @@ function(input, output, session) {
                     verbatimTextOutput("metric_separation"),
                     tags$div(
                         class = "metric-info",
-                        "→ Mesure la différence entre clusters. Plus faible = clusters bien séparés."
+                        sep_text
                     )
                 )
             ),

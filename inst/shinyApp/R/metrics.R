@@ -19,6 +19,12 @@ compute_simple_metrics <- function(X, clusters, method = "correlation") {
             message = "Metrics only available for numeric variables/clustering."
         ))
     }
+
+    # Standardiser les données si méthode euclidienne
+    if (method == "euclidean") {
+        X <- as.data.frame(scale(X))
+    }
+
     # Homogeneity: mean absolute correlation (or 1 - mean distance) within clusters
     homogeneity <- sapply(clusters, function(vars) {
         if (length(vars) < 2) {
@@ -59,16 +65,40 @@ compute_simple_metrics <- function(X, clusters, method = "correlation") {
     # Silhouette: for each variable, silhouette value
     silhouette_vals <- rep(NA, length(all_vars))
     names(silhouette_vals) <- all_vars
-    # Only for correlation/Euclidean
+
+    # Compute distance matrix based on method
     if (method == "correlation") {
-        cor_mat <- 1 - abs(cor(X[, all_vars, drop = FALSE]))
-        for (v in all_vars) {
-            clust <- which(sapply(clusters, function(vars) v %in% vars))
-            in_clust <- clusters[[clust]]
-            out_clust <- setdiff(all_vars, in_clust)
-            a <- if (length(in_clust) > 1) mean(cor_mat[v, in_clust[in_clust != v]]) else NA
-            b <- if (length(out_clust) > 0) min(sapply(out_clust, function(w) mean(cor_mat[v, w]))) else NA
-            silhouette_vals[v] <- if (!is.na(a) && !is.na(b)) (b - a) / max(a, b) else NA
+        dist_mat <- 1 - abs(cor(X[, all_vars, drop = FALSE]))
+    } else {
+        dist_mat <- as.matrix(dist(t(X[, all_vars, drop = FALSE])))
+    }
+
+    # Compute silhouette for each variable
+    for (v in all_vars) {
+        clust <- which(sapply(clusters, function(vars) v %in% vars))
+        in_clust <- clusters[[clust]]
+        out_clust <- setdiff(all_vars, in_clust)
+
+        # a = mean distance to variables in same cluster
+        a <- if (length(in_clust) > 1) mean(dist_mat[v, in_clust[in_clust != v]]) else NA
+
+        # b = min mean distance to variables in other clusters
+        b <- if (length(out_clust) > 0) {
+            min(sapply(seq_along(clusters), function(j) {
+                if (j != clust && length(clusters[[j]]) > 0) {
+                    mean(dist_mat[v, clusters[[j]]])
+                } else {
+                    Inf
+                }
+            }))
+        } else {
+            NA
+        }
+
+        silhouette_vals[v] <- if (!is.na(a) && !is.na(b) && is.finite(b)) {
+            (b - a) / max(a, b)
+        } else {
+            NA
         }
     }
     silhouette_mean <- mean(silhouette_vals, na.rm = TRUE)
