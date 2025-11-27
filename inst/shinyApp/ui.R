@@ -34,9 +34,13 @@ fluidPage(
             # Step 1: Data Upload
             h4("1️⃣ Load Data"),
             fileInput("data_file",
-                "Choose CSV/TSV File",
-                accept = c(".csv", ".tsv", ".txt"),
+                "Choose CSV/TSV/Parquet File",
+                accept = c(".csv", ".tsv", ".txt", ".parquet"),
                 placeholder = "No file selected"
+            ),
+            tags$div(
+                class = "upload-info",
+                tags$small("Max upload: 300 MB. For very large datasets prefer Parquet.")
             ),
             checkboxInput("header", "File has header", TRUE),
             checkboxInput("auto_sep", "Auto-detect separator", TRUE),
@@ -172,8 +176,12 @@ fluidPage(
                         p("⚠️ The new dataset must have the same number of observations (rows) as the training data.")
                     ),
                     fileInput("predict_file",
-                        "Upload New Variables (CSV/TSV):",
-                        accept = c(".csv", ".tsv", ".txt")
+                        "Upload New Variables (CSV/TSV/Parquet):",
+                        accept = c(".csv", ".tsv", ".txt", ".parquet")
+                    ),
+                    tags$div(
+                        class = "upload-info",
+                        tags$small("Max upload: 300 MB. Use Parquet for faster uploads and reuse.")
                     ),
                     actionButton("run_prediction",
                         "🔮 Classify Variables",

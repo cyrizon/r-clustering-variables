@@ -20,7 +20,7 @@ library(R6)
 library(FactoMineR)
 
 # Set options
-options(shiny.maxRequestSize = 30 * 1024^2) # Max upload size: 30MB
+options(shiny.maxRequestSize = 300 * 1024^2) # Max upload size: 300MB
 
 # =============================================================================
 # Load Algorithm Classes

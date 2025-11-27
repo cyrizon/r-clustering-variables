@@ -58,13 +58,50 @@ load_uploaded_data <- function(file_path, header = TRUE, sep = NULL) {
     message(paste("Auto-detected separator:", sep))
   }
 
-  data <- read.table(
+  # Use data.table::fread for faster parsing of larger files
+  # If parquet input provided, try reading it directly (fast)
+  if (grepl("\\.(parquet|parq)$", tolower(file_path))) {
+    if (requireNamespace("arrow", quietly = TRUE)) {
+      tryCatch(
+        {
+          df_par <- arrow::read_parquet(file_path)
+          return(as.data.frame(df_par))
+        },
+        error = function(e) {
+          message("Failed to read parquet file, falling back to CSV: ", e$message)
+        }
+      )
+    } else {
+      message("arrow package not available: cannot read parquet, will read as CSV")
+    }
+  }
+
+  dt <- data.table::fread(
     file_path,
-    header = header,
     sep = sep,
-    stringsAsFactors = FALSE
+    header = header,
+    showProgress = FALSE,
+    data.table = FALSE
   )
-  return(data)
+  df <- as.data.frame(dt)
+
+  # Attempt to write a Parquet version alongside the uploaded file for faster reuse
+  if (requireNamespace("arrow", quietly = TRUE)) {
+    tryCatch(
+      {
+        parquet_path <- file.path(dirname(file_path), paste0(tools::file_path_sans_ext(basename(file_path)), ".parquet"))
+        arrow::write_parquet(df, parquet_path)
+        message(paste("Parquet written:", parquet_path))
+      },
+      error = function(e) {
+        message(paste("Parquet write failed:", e$message))
+      }
+    )
+  } else {
+    message("arrow not installed: skipping parquet conversion")
+  }
+
+  return(df)
 }
 
 #' Extract numeric variable names from dataset
