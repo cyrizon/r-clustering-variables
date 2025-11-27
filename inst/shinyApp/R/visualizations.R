@@ -1,5 +1,5 @@
 #' Plot eta² heatmap for ACM clustering
-#' @param acm_model ACMVariablesR6 fitted model
+#' @param acm_model ClustVarACM fitted model
 #' @return NULL (side effect: creates plot)
 plot_eta2_heatmap <- function(acm_model) {
   eta2_mat <- acm_model$eta2_matrix
@@ -26,6 +26,72 @@ plot_eta2_heatmap <- function(acm_model) {
       text(i, nrow(eta2_mat) - j + 1, sprintf("%.2f", val), cex = 0.8)
     }
   }
+}
+
+#' Plot chi²-based score heatmap for ACM clustering
+#' @param acm_model ClustVarACM fitted model (must contain `score_matrix` or `eta2_matrix`)
+#' @param p_threshold Numeric significance threshold (p-value); cells with p <= threshold will be outlined
+#' @param show_p Logical, if TRUE show original p-values in cells; otherwise show score (1 - p)
+#' @return NULL (side effect: creates plot)
+plot_chi2_heatmap <- function(acm_model, p_threshold = 0.05, show_p = FALSE) {
+  # prefer score_matrix (1 - p), but try to reconstruct from eta2_matrix if absent
+  score_mat <- acm_model$score_matrix
+  if (is.null(score_mat)) {
+    plot.new()
+    text(0.5, 0.5, "No chi² score matrix available.", cex = 1.2)
+    return(invisible(NULL))
+  }
+
+  # If the matrix has column/row names, use them; otherwise create labels
+  var_names <- rownames(score_mat)
+  if (is.null(var_names)) var_names <- paste0("V", seq_len(nrow(score_mat)))
+  cluster_names <- colnames(score_mat)
+  if (is.null(cluster_names)) cluster_names <- paste0("C", seq_len(ncol(score_mat)))
+
+  # Convert score (1 - p) to numeric between 0 and 1
+  sm <- as.matrix(score_mat)
+  sm[is.infinite(sm) | is.na(sm)] <- 0
+  sm[sm < 0] <- 0
+  sm[sm > 1] <- 1
+
+  par(mar = c(6, 8, 4, 2))
+  image(1:ncol(sm), 1:nrow(sm), t(sm[nrow(sm):1, , drop = FALSE]),
+    col = hcl.colors(100, "YlOrRd"), axes = FALSE,
+    xlab = "Cluster", ylab = "Variable",
+    main = "Association Heatmap: 1 - p-value (chi²)"
+  )
+  axis(1, at = 1:ncol(sm), labels = cluster_names, las = 2, cex.axis = 0.9)
+  axis(2, at = 1:nrow(sm), labels = rev(var_names), las = 2, cex.axis = 0.9)
+
+  # Optionally annotate cells with values (score or p-value)
+  for (i in 1:ncol(sm)) {
+    for (j in 1:nrow(sm)) {
+      val <- sm[j, i]
+      lab <- if (show_p) {
+        # show original p-value = 1 - score
+        pv <- 1 - val
+        sprintf("%.3f", pv)
+      } else {
+        sprintf("%.2f", val)
+      }
+      text(i, nrow(sm) - j + 1, lab, cex = 0.8)
+    }
+  }
+
+  # Outline significant cells (p <= p_threshold) if show_p FALSE or TRUE (we compute p=1-score)
+  p_mat <- 1 - sm
+  sig_idx <- which(p_mat <= p_threshold, arr.ind = TRUE)
+  if (nrow(sig_idx) > 0) {
+    for (r in seq_len(nrow(sig_idx))) {
+      row_i <- sig_idx[r, 1]
+      col_i <- sig_idx[r, 2]
+      # draw rectangle around cell (x=col_i, y= nrow - row_i + 1)
+      rect(col_i - 0.5, nrow(sm) - row_i + 0.5 - 0.999, col_i + 0.5, nrow(sm) - row_i + 1.5 - 0.999,
+        border = "black", lwd = 2)
+    }
+  }
+
+  invisible(NULL)
 }
 # =============================================================================
 # Visualization Functions

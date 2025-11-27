@@ -1,5 +1,5 @@
 # ==============================================================================
-# Unit tests for the KMeansVariablesR6 class
+# Unit tests for the ClustVarKMeans class
 # ==============================================================================
 # This file contains a comprehensive suite of tests to validate the behavior
 # of the K-means algorithm adapted for variable clustering.
@@ -17,18 +17,18 @@ library(testthat)
 library(R6)
 
 # Load the class under test
-source("../../R/algorithms/KMeansVariablesR6.R")
+source("../../R/algorithms/ClustVarKMeans.R")
 
 # ==============================================================================
 # 1. TESTS D'INITIALISATION
 # ==============================================================================
 
-test_that("KMeansVariablesR6 initializes correctly with default parameters", {
+test_that("ClustVarKMeans initializes correctly with default parameters", {
     # Test: create an object with default parameters
-    model <- KMeansVariablesR6$new()
+    model <- ClustVarKMeans$new()
 
     # Default checks
-    expect_equal(model$k, 3)
+    expect_equal(model$K, 3)
     expect_equal(model$method, "correlation")
     expect_equal(model$max_iter, 100)
     expect_equal(model$nstart, 10)
@@ -36,10 +36,9 @@ test_that("KMeansVariablesR6 initializes correctly with default parameters", {
     expect_null(model$seed)
 })
 
-test_that("KMeansVariablesR6 initializes with custom parameters", {
+test_that("ClustVarKMeans initializes with custom parameters", {
     # Test: creation with specific parameters
-    model <- KMeansVariablesR6$new(
-        k = 5,
+    model <- ClustVarKMeans$new(K = 5,
         method = "euclidean",
         max_iter = 50,
         nstart = 20,
@@ -47,7 +46,7 @@ test_that("KMeansVariablesR6 initializes with custom parameters", {
     )
 
     # Checks
-    expect_equal(model$k, 5)
+    expect_equal(model$K, 5)
     expect_equal(model$method, "euclidean")
     expect_equal(model$max_iter, 50)
     expect_equal(model$nstart, 20)
@@ -57,7 +56,7 @@ test_that("KMeansVariablesR6 initializes with custom parameters", {
 test_that("Distance method must be valid", {
     # Test: invalid method should throw an error
     expect_error(
-        KMeansVariablesR6$new(method = "invalid_method"),
+        ClustVarKMeans$new(method = "invalid_method"),
         "'arg' should be one of"
     )
 })
@@ -68,7 +67,7 @@ test_that("Distance method must be valid", {
 
 test_that("fit() rejects non-numeric data", {
     # Test: data with non-numeric columns
-    model <- KMeansVariablesR6$new(k = 2)
+    model <- ClustVarKMeans$new(K = 2)
     data_invalid <- data.frame(
         x1 = c(1, 2, 3),
         x2 = c("a", "b", "c"), # Non-numeric column
@@ -83,7 +82,7 @@ test_that("fit() rejects non-numeric data", {
 
 test_that("fit() rejects data with missing values", {
     # Test: data containing NA
-    model <- KMeansVariablesR6$new(k = 2)
+    model <- ClustVarKMeans$new(K = 2)
     data_with_na <- data.frame(
         x1 = c(1, 2, NA),
         x2 = c(4, 5, 6),
@@ -97,26 +96,26 @@ test_that("fit() rejects data with missing values", {
 })
 
 test_that("fit() rejects an invalid k", {
-    # Test: k too small (< 2)
-    model <- KMeansVariablesR6$new(k = 1)
+    # Test: K too small (< 2)
+    model <- ClustVarKMeans$new(K = 1)
     data <- data.frame(x1 = 1:10, x2 = 11:20, x3 = 21:30)
 
     expect_error(
         model$fit(data),
-        "k must be between 2 and the number of variables"
+        "K must be between 2 and the number of variables"
     )
 
-    # Test : k trop grand (> nombre de variables)
-    model <- KMeansVariablesR6$new(k = 10)
+    # Test : K trop grand (> nombre de variables)
+    model <- ClustVarKMeans$new(K = 10)
     expect_error(
         model$fit(data),
-        "k must be between 2 and the number of variables"
+        "K must be between 2 and the number of variables"
     )
 })
 
 test_that("fit() accepts a matrix input", {
     # Test: matrices should be accepted like data.frames
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     data_matrix <- matrix(rnorm(30), nrow = 10, ncol = 3)
 
     # fit() produces a success message
@@ -138,7 +137,7 @@ test_that("fit() creates clusters using the correlation method", {
         var4 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
+    model <- ClustVarKMeans$new(K = 2, method = "correlation", seed = 42)
     model$fit(data)
 
     # Checks
@@ -164,7 +163,7 @@ test_that("fit() creates clusters using the euclidean method", {
         var4 = rnorm(50, mean = 5)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, method = "euclidean", seed = 123)
+    model <- ClustVarKMeans$new(K = 2, method = "euclidean", seed = 123)
     model$fit(data)
 
     # Checks
@@ -175,7 +174,7 @@ test_that("fit() creates clusters using the euclidean method", {
 
 test_that("fit() generates default variable names if absent", {
     # Test: data without column names
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     data_matrix <- matrix(rnorm(40), nrow = 10, ncol = 4)
     # La matrice n'a pas de colnames initialement
 
@@ -199,11 +198,11 @@ test_that("fit() with multiple starts (nstart) improves the solution", {
     )
 
     # Model with 1 random start
-    model1 <- KMeansVariablesR6$new(k = 3, nstart = 1, seed = 42)
+    model1 <- ClustVarKMeans$new(K = 3, nstart = 1, seed = 42)
     model1$fit(data)
 
     # Model with 20 random starts
-    model2 <- KMeansVariablesR6$new(k = 3, nstart = 20, seed = 42)
+    model2 <- ClustVarKMeans$new(K = 3, nstart = 20, seed = 42)
     model2$fit(data)
 
     # Inertia with more starts should be <= (better or equal)
@@ -218,7 +217,7 @@ test_that("fit() stores normalization parameters correctly", {
         var3 = c(100, 200, 300, 400, 500)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(data)
 
     # Verify that scale_center and scale_scale are stored
@@ -234,7 +233,7 @@ test_that("fit() stores normalization parameters correctly", {
 
 test_that("predict() requires a fitted model", {
     # Test: predict() without prior fit() should fail
-    model <- KMeansVariablesR6$new(k = 2)
+    model <- ClustVarKMeans$new(K = 2)
     new_data <- data.frame(new_var = rnorm(50))
 
     expect_error(
@@ -251,7 +250,7 @@ test_that("predict() rejects data with a different number of observations", {
         var2 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(train_data)
 
     # Data with 30 observations (different from 50)
@@ -272,7 +271,7 @@ test_that("predict() assigns new variables correctly (scaling='self')", {
         var3 = rnorm(50, mean = 5, sd = 2)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
+    model <- ClustVarKMeans$new(K = 2, method = "correlation", seed = 42)
     model$fit(train_data)
 
     # New variables to predict
@@ -303,7 +302,7 @@ test_that("predict() works with scaling='training'", {
         var3 = rnorm(50, mean = 5, sd = 1)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(train_data)
 
     # The new data must have the same number of columns (3)
@@ -327,7 +326,7 @@ test_that("predict() works with scaling='none'", {
         var2 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(train_data)
 
     new_data <- data.frame(new_var = rnorm(50))
@@ -342,7 +341,7 @@ test_that("predict() generates default variable names if absent", {
     set.seed(42)
     train_data <- data.frame(var1 = rnorm(50), var2 = rnorm(50))
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(train_data)
 
     new_data_matrix <- matrix(rnorm(50), ncol = 1)
@@ -369,19 +368,19 @@ test_that("elbow_method() computes inertia for different k values", {
         var6 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(seed = 42)
+    model <- ClustVarKMeans$new(seed = 42)
 
     # Run elbow_method without plotting
-    k_opt <- model$elbow_method(data, k_min = 2, k_max = 5, plot = FALSE)
+    K_opt <- model$elbow_method(data, K_min = 2, K_max = 5, plot = FALSE)
 
     # Checks
-    expect_true(is.numeric(k_opt))
-    expect_true(k_opt >= 2 && k_opt <= 5)
+    expect_true(is.numeric(K_opt))
+    expect_true(K_opt >= 2 && K_opt <= 5)
 })
 
 test_that("elbow_method() rejects invalid data", {
     # Test: data with NA should be rejected
-    model <- KMeansVariablesR6$new()
+    model <- ClustVarKMeans$new()
     data_with_na <- data.frame(
         var1 = c(1, 2, NA),
         var2 = c(4, 5, 6),
@@ -394,8 +393,8 @@ test_that("elbow_method() rejects invalid data", {
     )
 })
 
-test_that("elbow_method() adjusts k_max if too large", {
-    # Test: k_max > number of variables - 1 should be adjusted automatically
+test_that("elbow_method() adjusts K_max if too large", {
+    # Test: K_max > number of variables - 1 should be adjusted automatically
     set.seed(42)
     # Use 8 variables to provide a sufficient range (k from 2 to 7)
     data <- data.frame(
@@ -409,16 +408,16 @@ test_that("elbow_method() adjusts k_max if too large", {
         var8 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(seed = 42)
+    model <- ClustVarKMeans$new(seed = 42)
 
-    # k_max = 20 mais seulement 8 variables (max possible = 7)
-    # The method should adjust k_max to 7 automatically
-    k_opt <- model$elbow_method(data, k_min = 2, k_max = 20, plot = FALSE)
+    # K_max = 20 mais seulement 8 variables (max possible = 7)
+    # The method should adjust K_max to 7 automatically
+    K_opt <- model$elbow_method(data, K_min = 2, K_max = 20, plot = FALSE)
 
-    # The optimal k must be valid (between 2 and 7)
-    expect_true(is.numeric(k_opt))
-    expect_equal(length(k_opt), 1) # Doit retourner une seule valeur
-    expect_true(k_opt >= 2 && k_opt <= 7) # Maximum possible avec 8 variables
+    # The optimal K must be valid (between 2 and 7)
+    expect_true(is.numeric(K_opt))
+    expect_equal(length(K_opt), 1) # Doit retourner une seule valeur
+    expect_true(K_opt >= 2 && K_opt <= 7) # Maximum possible avec 8 variables
 })
 
 test_that("elbow_method() works with different distance methods", {
@@ -432,10 +431,10 @@ test_that("elbow_method() works with different distance methods", {
         var5 = rnorm(50, mean = 10)
     )
 
-    model <- KMeansVariablesR6$new(method = "euclidean", seed = 42)
-    k_opt <- model$elbow_method(data, k_min = 2, k_max = 4, plot = FALSE)
+    model <- ClustVarKMeans$new(method = "euclidean", seed = 42)
+    K_opt <- model$elbow_method(data, K_min = 2, K_max = 4, plot = FALSE)
 
-    expect_true(k_opt >= 2 && k_opt <= 4)
+    expect_true(K_opt >= 2 && K_opt <= 4)
 })
 
 # ============================================================================
@@ -451,7 +450,7 @@ test_that("get_center_variables() returns the center variable names", {
         var3 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(data)
 
     centers <- model$get_center_variables()
@@ -463,7 +462,7 @@ test_that("get_center_variables() returns the center variable names", {
 
 test_that("get_center_variables() fails if the model is not fitted", {
     # Test: calling before fit() should fail
-    model <- KMeansVariablesR6$new(k = 2)
+    model <- ClustVarKMeans$new(K = 2)
 
     expect_error(
         model$get_center_variables(),
@@ -476,10 +475,10 @@ test_that("print() displays model information", {
     set.seed(42)
     data <- data.frame(var1 = rnorm(50), var2 = rnorm(50))
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(data)
 
-    expect_output(model$print(), "KMeansVariablesR6")
+    expect_output(model$print(), "ClustVarKMeans")
     expect_output(model$print(), "fitted: TRUE")
 })
 
@@ -492,10 +491,10 @@ test_that("summary() displays a detailed summary", {
         var3 = rnorm(50)
     )
 
-    model <- KMeansVariablesR6$new(k = 2, seed = 42)
+    model <- ClustVarKMeans$new(K = 2, seed = 42)
     model$fit(data)
 
-    expect_output(model$summary(), "KMeansVariablesR6 Summary")
+    expect_output(model$summary(), "ClustVarKMeans Summary")
     expect_output(model$summary(), "Cluster sizes")
     expect_output(model$summary(), "Total inertia")
 })
@@ -517,7 +516,7 @@ test_that("Full workflow: fit() then predict()", {
     )
 
     # 2. Initialize and fit the model
-    model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
+    model <- ClustVarKMeans$new(K = 2, method = "correlation", seed = 42)
     model$fit(train_data)
 
     # 3. Check the fit
@@ -537,7 +536,7 @@ test_that("Full workflow: fit() then predict()", {
     expect_true(all(predictions$cluster %in% 1:2))
 
     # 6. Obtain a summary
-    expect_output(model$summary(), "KMeansVariablesR6 Summary")
+    expect_output(model$summary(), "ClustVarKMeans Summary")
 })
 
 test_that("Model is reproducible with a fixed seed", {
@@ -549,12 +548,12 @@ test_that("Model is reproducible with a fixed seed", {
     )
 
     # First fit
-    model1 <- KMeansVariablesR6$new(k = 2, seed = 999)
+    model1 <- ClustVarKMeans$new(K = 2, seed = 999)
     model1$fit(data)
     inertia1 <- model1$inertia
 
     # Second fit with the same seed
-    model2 <- KMeansVariablesR6$new(k = 2, seed = 999)
+    model2 <- ClustVarKMeans$new(K = 2, seed = 999)
     model2$fit(data)
     inertia2 <- model2$inertia
 
@@ -569,7 +568,7 @@ test_that("Model handles a large number of variables correctly", {
     data <- as.data.frame(matrix(rnorm(50 * n_vars), nrow = 50, ncol = n_vars))
     colnames(data) <- paste0("var", 1:n_vars)
 
-    model <- KMeansVariablesR6$new(k = 5, seed = 42, nstart = 5)
+    model <- ClustVarKMeans$new(K = 5, seed = 42, nstart = 5)
 
     # fit() produces a success message, so use expect_message
     expect_message(model$fit(data), "Best of")
@@ -581,4 +580,4 @@ test_that("Model handles a large number of variables correctly", {
 # END OF TESTS MESSAGE
 # ============================================================================
 
-message("\n✓ KMeansVariablesR6 unit tests completed successfully!")
+message("\n✓ ClustVarKMeans unit tests completed successfully!")

@@ -7,11 +7,11 @@ create_model <- function(algorithm = "kmeans", params = list()) {
   seed <- if (!is.null(params$seed)) params$seed else NULL
 
   if (alg == "kmeans") {
-    if (!exists("KMeansVariablesR6", mode = "any")) {
-      stop("KMeansVariablesR6 class not found. Make sure the implementation is loaded.")
+    if (!exists("ClustVarKMeans", mode = "any")) {
+      stop("ClustVarKMeans class not found. Make sure the implementation is loaded.")
     }
-    return(KMeansVariablesR6$new(
-      k = k,
+    return(ClustVarKMeans$new(
+      K = k,
       method = method,
       nstart = nstart,
       seed = seed
@@ -19,29 +19,27 @@ create_model <- function(algorithm = "kmeans", params = list()) {
   }
 
   if (alg == "hac") {
-    if (!exists("HACVariablesR6", mode = "any")) {
-      stop("HACVariablesR6 class not found. Make sure the implementation is loaded.")
+    if (!exists("ClustVarHAC", mode = "any")) {
+      stop("ClustVarHAC class not found. Make sure the implementation is loaded.")
     }
     linkage_method <- if (!is.null(params$linkage_method)) params$linkage_method else "ward.D2"
-    return(HACVariablesR6$new(
-      k = k,
+    return(ClustVarHAC$new(
+      K = k,
       method = method,
       linkage_method = linkage_method
     ))
   }
 
   if (alg == "acm") {
-    if (!exists("ACMVariablesR6", mode = "any")) {
-      stop("ACMVariablesR6 class not found. Make sure the implementation is loaded.")
+    if (!exists("ClustVarACM", mode = "any")) {
+      stop("ClustVarACM class not found. Make sure the implementation is loaded.")
     }
     max_iter <- if (!is.null(params$max_iter)) params$max_iter else 30
     tol <- if (!is.null(params$tol)) params$tol else 1e-4
-    verbose <- if (!is.null(params$verbose)) params$verbose else FALSE
-    return(ACMVariablesR6$new(
-      k = k,
+    return(ClustVarACM$new(
+      K = k,
       max_iter = max_iter,
-      tol = tol,
-      verbose = verbose
+      tol = tol
     ))
   }
 

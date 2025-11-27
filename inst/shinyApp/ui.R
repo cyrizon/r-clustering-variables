@@ -225,7 +225,7 @@ fluidPage(
                         p("  - Linkage: Ward's method, Complete, Average, or Single"),
                         p("  - Cut tree at specified k to obtain clusters"),
                         p(strong("ACM (Multiple Correspondence Analysis):"), " Clustering for categorical variables"),
-                        p("  - Iterative optimization based on η² (eta-squared) measure"),
+                        p("  - Iterative optimization based on χ² (chi-squared) association test"),
                         p("  - Convergence controlled by max iterations and tolerance"),
                         p("  - Q criterion tracks overall clustering quality")
                     ),
@@ -234,7 +234,7 @@ fluidPage(
                         h4("Step 4: Run and Analyze"),
                         p("• Click 'Run Clustering' to perform the analysis"),
                         p("• Results tab: View cluster assignments and model summary"),
-                        p("• Visualizations tab: Cluster sizes, distribution, correlation/η² heatmaps"),
+                        p("• Visualizations tab: Cluster sizes, distribution, correlation/χ² heatmaps"),
                         p("• Metrics tab: Homogeneity, separation, silhouette, cophenetic correlation (HAC), Q criterion (ACM)"),
                         p("• Predict tab: Classify new variables into existing clusters"),
                         p("• Export: Download results as CSV or plots as images")

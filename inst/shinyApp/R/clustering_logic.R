@@ -39,7 +39,7 @@ run_clustering_workflow <- function(X, algorithm = "kmeans", params = list()) {
     # Elbow method with automatic curvature detection
     optimal_k <- temp_model$elbow_method(
       X,
-      k_max = max_k,
+      K_max = max_k,
       plot = FALSE
     )
 
@@ -74,6 +74,11 @@ run_clustering_workflow <- function(X, algorithm = "kmeans", params = list()) {
   )
 
   # Fit the model with data (uniform interface for all algorithms)
+  # For ACM (categorical algorithm), ensure variables are factors; coerce if needed
+  if (algorithm == "acm") {
+    X[] <- lapply(X, function(col) if (!is.factor(col)) as.factor(col) else col)
+  }
+
   model$fit(X)
 
   # Extract and format clusters

@@ -106,7 +106,7 @@ compute_simple_metrics <- function(X, clusters, method = "correlation") {
 }
 
 #' Compute cophenetic correlation for HAC
-#' @param hac_model fitted HACVariablesR6 object (not just $model)
+#' @param hac_model fitted ClustVarHAC object (not just $model)
 #' @return cophenetic correlation
 compute_cophenetic <- function(hac_model) {
     if (is.null(hac_model) || is.null(hac_model$model) || is.null(hac_model$dist_matrix)) {
@@ -118,7 +118,7 @@ compute_cophenetic <- function(hac_model) {
 }
 
 #' Extract Q for ACM
-#' @param acm_model fitted ACMVariablesR6
+#' @param acm_model fitted ClustVarACM
 #' @return Q value
 extract_acm_Q <- function(acm_model) {
     if (is.null(acm_model$Q_final)) {

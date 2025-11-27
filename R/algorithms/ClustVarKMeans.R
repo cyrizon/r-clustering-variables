@@ -6,11 +6,11 @@
 #' Variables are grouped based on their similarity (correlation or euclidean distance).
 #'
 #' @export
-KMeansVariablesR6 <- R6::R6Class(
-  "KMeansVariablesR6",
+ClustVarKMeans <- R6::R6Class(
+  "ClustVarKMeans",
   public = list(
-    #' @field k Number of clusters
-    k = NULL,
+    #' @field K Number of clusters
+    K = NULL,
     #' @field method Distance method ("correlation" or "euclidean")
     method = NULL,
     #' @field max_iter Maximum iterations for convergence
@@ -23,8 +23,8 @@ KMeansVariablesR6 <- R6::R6Class(
     inertia = NULL,
     #' @field fitted Logical indicating if model has been fitted
     fitted = FALSE,
-    #' @field data_fit Normalized data used for fitting
-    data_fit = NULL,
+    #' @field data Normalized data used for fitting
+    data = NULL,
     #' @field scale_center Centering parameters from scaling
     scale_center = NULL,
     #' @field scale_scale Scaling parameters from scaling
@@ -35,18 +35,18 @@ KMeansVariablesR6 <- R6::R6Class(
     nstart = 10,
 
     #' @description
-    #' Create a new KMeansVariablesR6 object
-    #' @param k Number of clusters (default: 3)
+    #' Create a new ClustVarKMeans object
+    #' @param K Number of clusters (default: 3)
     #' @param method Distance method: "correlation" or "euclidean" (default: "correlation")
     #' @param max_iter Maximum iterations for convergence (default: 100)
     #' @param seed Optional seed for reproducibility
-    #' @return A new `KMeansVariablesR6` object
-    initialize = function(k = 3,
+    #' @return A new `ClustVarKMeans` object
+    initialize = function(K = 3,
                           method = c("correlation", "euclidean"),
                           max_iter = 100,
                           nstart = 10,
                           seed = NULL) {
-      self$k <- k
+      self$K <- K
       self$method <- match.arg(method)
       self$max_iter <- max_iter
       self$nstart <- nstart
@@ -68,8 +68,8 @@ KMeansVariablesR6 <- R6::R6Class(
       if (anyNA(X)) {
         stop("Data must not contain missing values (NA).")
       }
-      if (self$k < 2 || self$k > ncol(X)) {
-        stop("k must be between 2 and the number of variables.")
+      if (self$K < 2 || self$K > ncol(X)) {
+        stop("K must be between 2 and the number of variables.")
       }
 
       # Ensure variables have names; generate defaults if missing
@@ -80,7 +80,7 @@ KMeansVariablesR6 <- R6::R6Class(
       # === 2. DATA PREPARATION ===
       # Normalize data (center and scale) so all variables are comparable
       X_norm <- scale(X)
-      self$data_fit <- X_norm
+      self$data <- X_norm
       # Store normalization parameters for predict()
       self$scale_center <- attr(X_norm, "scaled:center")
       self$scale_scale <- attr(X_norm, "scaled:scale")
@@ -111,11 +111,11 @@ KMeansVariablesR6 <- R6::R6Class(
         if (!is.null(self$seed)) set.seed(self$seed + start_run * 1000)
 
         # First center: random
-        initial_centers_idx <- numeric(self$k)
+        initial_centers_idx <- numeric(self$K)
         initial_centers_idx[1] <- sample(n_vars, 1)
 
         # Subsequent centers: probability proportional to D²
-        for (i in 2:self$k) {
+        for (i in 2:self$K) {
           # Minimum distance of each variable to already chosen centers
           min_dists <- apply(dist_matrix[, initial_centers_idx[1:(i - 1)], drop = FALSE], 1, min)
 
@@ -148,7 +148,7 @@ KMeansVariablesR6 <- R6::R6Class(
           # Assign each variable to the nearest center
           for (i in seq_len(n_vars)) {
             # Calculate distance from variable i to each center
-            distances_to_centers <- sapply(seq_len(self$k), function(c) {
+            distances_to_centers <- sapply(seq_len(self$K), function(c) {
               center_idx <- current_centers_idx[c]
               dist_matrix[i, center_idx]
             })
@@ -158,7 +158,7 @@ KMeansVariablesR6 <- R6::R6Class(
 
           # --- STEP B: UPDATE CENTERS ---
           # Recalculate center of each cluster (medoid = most central variable)
-          new_centers_idx <- sapply(seq_len(self$k), function(c) {
+          new_centers_idx <- sapply(seq_len(self$K), function(c) {
             # Variables belonging to cluster c
             vars_in_cluster <- which(cluster_assignment == c)
 
@@ -190,7 +190,7 @@ KMeansVariablesR6 <- R6::R6Class(
         }
 
         # Calculate inertia for this run
-        run_inertia <- sum(sapply(seq_len(self$k), function(c) {
+        run_inertia <- sum(sapply(seq_len(self$K), function(c) {
           vars_idx <- which(cluster_assignment == c)
           if (length(vars_idx) <= 1) {
             return(0)
@@ -222,40 +222,40 @@ KMeansVariablesR6 <- R6::R6Class(
     #' Predict cluster membership for new variables
     #' @param X A data.frame or matrix with numeric variables to classify
     #' @return A data.frame with variable names, assigned clusters, and distances
-    predict = function(X, scaling = c("self", "training", "none")) {
+    predict = function(newdata, scaling = c("self", "training", "none")) {
       scaling <- match.arg(scaling)
       if (!self$fitted) {
         stop("Model must be fitted with $fit() before prediction.")
       }
-      if (!is.data.frame(X) && !is.matrix(X)) {
-        stop("X must be a data.frame or matrix.")
+      if (!is.data.frame(newdata) && !is.matrix(newdata)) {
+        stop("newdata must be a data.frame or matrix.")
       }
-      if (!all(sapply(X, is.numeric))) {
+      if (!all(sapply(newdata, is.numeric))) {
         stop("All variables must be numeric.")
       }
-      if (anyNA(X)) {
+      if (anyNA(newdata)) {
         stop("Data must not contain missing values (NA).")
       }
 
-      # Check that X has the same number of observations as training data
-      if (nrow(X) != nrow(self$data_fit)) {
+      # Check that newdata has the same number of observations as training data
+      if (nrow(newdata) != nrow(self$data)) {
         stop(
-          "X must have the same number of observations (rows) as training data. Expected: ",
-          nrow(self$data_fit), ", got: ", nrow(X)
+          "newdata must have the same number of observations (rows) as training data. Expected: ",
+          nrow(self$data), ", got: ", nrow(newdata)
         )
       }
 
       # Ensure variable names exist for predictions
-      if (is.null(colnames(X))) colnames(X) <- paste0("V", seq_len(ncol(X)))
+      if (is.null(colnames(newdata))) colnames(newdata) <- paste0("V", seq_len(ncol(newdata)))
 
-      # Normalize X according to user choice
+      # Normalize newdata according to user choice
       if (scaling == "self") {
-        X_norm <- scale(X)
+        X_norm <- scale(newdata)
       } else if (scaling == "training") {
         if (is.null(self$scale_center) || is.null(self$scale_scale)) stop("No training scaling parameters available. Fit the model first.")
-        X_norm <- scale(X, center = self$scale_center, scale = self$scale_scale)
+        X_norm <- scale(newdata, center = self$scale_center, scale = self$scale_scale)
       } else {
-        X_norm <- as.matrix(X)
+        X_norm <- as.matrix(newdata)
       }
       var_names <- colnames(X_norm)
 
@@ -270,14 +270,14 @@ KMeansVariablesR6 <- R6::R6Class(
           min_dist <- Inf
           best_cluster <- NA
 
-          for (k in 1:self$k) {
+          for (k in 1:self$K) {
             # Get variables in cluster k
             cluster_vars <- unlist(self$clusters[[k]])
             if (length(cluster_vars) > 0) {
               # Calculate mean correlation distance to cluster
               correlations <- sapply(cluster_vars, function(v) {
-                if (v %in% colnames(self$data_fit)) {
-                  abs(cor(var_vector, self$data_fit[, v]))
+                if (v %in% colnames(self$data)) {
+                  abs(cor(var_vector, self$data[, v]))
                 } else {
                   NA
                 }
@@ -303,14 +303,14 @@ KMeansVariablesR6 <- R6::R6Class(
           min_dist <- Inf
           best_cluster <- NA
 
-          for (k in 1:self$k) {
+          for (k in 1:self$K) {
             cluster_vars <- unlist(self$clusters[[k]])
             if (length(cluster_vars) > 0) {
               # Calculate mean distance to cluster variables
               distances_to_cluster <- sapply(cluster_vars, function(v) {
-                if (v %in% colnames(self$data_fit)) {
+                if (v %in% colnames(self$data)) {
                   # Euclidean distance between standardized variable vectors
-                  sqrt(mean((var_vector - self$data_fit[, v])^2))
+                  sqrt(mean((var_vector - self$data[, v])^2))
                 } else {
                   NA
                 }
@@ -343,8 +343,8 @@ KMeansVariablesR6 <- R6::R6Class(
     #' @description
     #' Print brief model information
     print = function() {
-      cat("KMeansVariablesR6 model\n")
-      cat("k:", self$k, "| method:", self$method, "| fitted:", self$fitted, "\n")
+      cat("ClustVarKMeans model\n")
+      cat("K:", self$K, "| method:", self$method, "| fitted:", self$fitted, "\n")
       if (self$fitted) {
         cat("Variables per cluster:\n")
         print(self$clusters)
@@ -354,8 +354,8 @@ KMeansVariablesR6 <- R6::R6Class(
     #' @description
     #' Print detailed model summary
     summary = function() {
-      cat("=== KMeansVariablesR6 Summary ===\n")
-      cat("Number of clusters:", self$k, "\n")
+      cat("=== ClustVarKMeans Summary ===\n")
+      cat("Number of clusters:", self$K, "\n")
       cat("Distance method:", self$method, "\n")
 
       if (self$fitted) {
@@ -384,18 +384,18 @@ KMeansVariablesR6 <- R6::R6Class(
     #' @return Character vector of center variable names
     get_center_variables = function() {
       if (!self$fitted) stop("Model not fitted")
-      var_names <- colnames(self$data_fit)
+      var_names <- colnames(self$data)
       return(var_names[self$centers])
     },
 
     #' @description
-    #' Elbow method: automatically determine optimal k using distance-to-line method
+    #' Elbow method: automatically determine optimal K using distance-to-line method
     #' @param X A data.frame or matrix with numeric variables
-    #' @param k_min Minimum number of clusters to test (default: 2)
-    #' @param k_max Maximum number of clusters to test (default: 10)
+    #' @param K_min Minimum number of clusters to test (default: 2)
+    #' @param K_max Maximum number of clusters to test (default: 10)
     #' @param plot Whether to plot the elbow curve (default: TRUE)
     #' @return Optimal number of clusters
-    elbow_method = function(X, k_min = 2, k_max = 10, plot = TRUE) {
+    elbow_method = function(X, K_min = 2, K_max = 10, plot = TRUE) {
       # === 1. VALIDATION ===
       if (!is.data.frame(X) && !is.matrix(X)) {
         stop("X must be a data.frame or matrix.")
@@ -408,9 +408,9 @@ KMeansVariablesR6 <- R6::R6Class(
       }
 
       n_vars <- ncol(X)
-      k_max <- min(k_max, n_vars - 1)
-      k_min <- max(k_min, 2)
-      if (k_max < k_min) stop("Not enough variables to run elbow method.")
+      K_max <- min(K_max, n_vars - 1)
+      K_min <- max(K_min, 2)
+      if (K_max < K_min) stop("Not enough variables to run elbow method.")
 
       # === 2. NORMALIZE DATA ===
       X_norm <- scale(X)
@@ -423,12 +423,12 @@ KMeansVariablesR6 <- R6::R6Class(
         dist_matrix <- as.matrix(dist(t(X_norm)))
       }
 
-      # === 4. COMPUTE INERTIA FOR EACH k (starting from k_min, not k=1) ===
-      k_range <- k_min:k_max
-      inertias <- numeric(length(k_range))
+      # === 4. COMPUTE INERTIA FOR EACH K (starting from K_min, not K=1) ===
+      K_range <- K_min:K_max
+      inertias <- numeric(length(K_range))
 
-      for (i in seq_along(k_range)) {
-        k <- k_range[i]
+      for (i in seq_along(K_range)) {
+        k <- K_range[i]
 
         # Run k-means with convergence for this k
         if (!is.null(self$seed)) set.seed(self$seed + k) # Vary seed per k
@@ -496,22 +496,22 @@ KMeansVariablesR6 <- R6::R6Class(
 
       # === 5. DETECT ELBOW USING DISTANCE-TO-LINE METHOD ===
       # Find point farthest from line connecting first and last point
-      n_points <- length(k_range)
+      n_points <- length(K_range)
 
       # Normalize coordinates to [0, 1] for distance calculation
-      k_norm <- (k_range - min(k_range)) / (max(k_range) - min(k_range))
+      K_norm <- (K_range - min(K_range)) / (max(K_range) - min(K_range))
       inertia_norm <- (inertias - min(inertias)) / (max(inertias) - min(inertias))
 
       # Line from first to last point
-      x1 <- k_norm[1]
+      x1 <- K_norm[1]
       y1 <- inertia_norm[1]
-      x2 <- k_norm[n_points]
+      x2 <- K_norm[n_points]
       y2 <- inertia_norm[n_points]
 
       # Calculate perpendicular distance from each point to the line
       distances_to_line <- numeric(n_points)
-      for (i in seq_along(k_range)) {
-        x0 <- k_norm[i]
+      for (i in seq_along(K_range)) {
+        x0 <- K_norm[i]
         y0 <- inertia_norm[i]
 
         # Distance from point (x0, y0) to line through (x1, y1) and (x2, y2)
@@ -522,39 +522,39 @@ KMeansVariablesR6 <- R6::R6Class(
 
       # The elbow is the point with maximum distance to the line
       elbow_idx <- which.max(distances_to_line)
-      k_optimal <- k_range[elbow_idx]
+      K_optimal <- K_range[elbow_idx]
 
       # === 6. VISUALIZATION ===
       if (plot) {
-        plot(k_range, inertias,
+        plot(K_range, inertias,
           type = "b", pch = 19, col = "steelblue", lwd = 2,
-          xlab = "Number of clusters (k)",
+          xlab = "Number of clusters (K)",
           ylab = "Inertia (within-cluster sum of squares)",
-          main = "Elbow Method for Optimal k Selection",
+          main = "Elbow Method for Optimal K Selection",
           las = 1
         )
 
         # Draw the reference line
-        lines(c(k_range[1], k_range[n_points]),
+        lines(c(K_range[1], K_range[n_points]),
           c(inertias[1], inertias[n_points]),
           col = "gray50", lty = 2, lwd = 1
         )
 
         # Mark the elbow
-        points(k_optimal, inertias[elbow_idx],
+        points(K_optimal, inertias[elbow_idx],
           col = "red", pch = 19, cex = 2
         )
-        abline(v = k_optimal, col = "red", lty = 2, lwd = 2)
-        text(k_optimal, max(inertias) * 0.9,
-          labels = paste("Optimal k =", k_optimal),
+        abline(v = K_optimal, col = "red", lty = 2, lwd = 2)
+        text(K_optimal, max(inertias) * 0.9,
+          labels = paste("Optimal K =", K_optimal),
           pos = 4, col = "red", font = 2
         )
 
         grid(col = "gray90", lty = "dotted")
       }
 
-      message(sprintf("✓ Elbow method selected k = %d", k_optimal))
-      return(k_optimal)
+      message(sprintf("✓ Elbow method selected K = %d", K_optimal))
+      return(K_optimal)
     }
   )
 )

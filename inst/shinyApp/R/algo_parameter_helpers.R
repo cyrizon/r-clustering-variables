@@ -28,7 +28,6 @@ prepare_algo_parameters <- function(algorithm, input) {
     params$k <- if (!is.null(input$acm_k)) input$acm_k else 3
     params$max_iter <- if (!is.null(input$acm_max_iter)) input$acm_max_iter else 30
     params$tol <- if (!is.null(input$acm_tol)) input$acm_tol else 1e-4
-    params$verbose <- if (!is.null(input$acm_verbose)) input$acm_verbose else FALSE
   }
 
   return(params)

@@ -33,9 +33,9 @@ has_acm <- FALSE
 
 tryCatch(
     {
-        source("../../R/algorithms/KMeansVariablesR6.R")
+        source("../../R/algorithms/ClustVarKMeans.R")
         has_kmeans <<- TRUE
-        message("✓ KMeansVariablesR6 loaded successfully")
+        message("✓ ClustVarKMeans loaded successfully")
     },
     error = function(e) {
         message(paste("✗ Failed to load KMeans class:", e$message))
@@ -45,9 +45,9 @@ tryCatch(
 
 tryCatch(
     {
-        source("../../R/algorithms/HACVariablesR6.R")
+        source("../../R/algorithms/ClustVarHAC.R")
         has_hac <<- TRUE
-        message("✓ HACVariablesR6 loaded successfully")
+        message("✓ ClustVarHAC loaded successfully")
     },
     error = function(e) {
         message(paste("✗ Failed to load HAC class:", e$message))
@@ -57,9 +57,9 @@ tryCatch(
 
 tryCatch(
     {
-        source("../../R/algorithms/ACMVariablesR6.R")
+        source("../../R/algorithms/ClustVarACM.R")
         has_acm <<- TRUE
-        message("✓ ACMVariablesR6 loaded successfully")
+        message("✓ ClustVarACM loaded successfully")
     },
     error = function(e) {
         message(paste("✗ Failed to load ACM class:", e$message))

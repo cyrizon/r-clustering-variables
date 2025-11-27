@@ -348,7 +348,6 @@ function(input, output, session) {
                     max = 1e-2,
                     step = 1e-5
                 ),
-                checkboxInput("acm_verbose", "Show iteration details", FALSE),
                 helpText("📝 ACM uses Multiple Correspondence Analysis for categorical variables")
             )
         } else {
@@ -526,13 +525,13 @@ function(input, output, session) {
         plot_cluster_distribution(rv$results$clusters)
     })
 
-    # Correlation heatmap or eta² heatmap for ACM
+    # Correlation heatmap or χ² heatmap for ACM
     output$plot_heatmap <- renderPlot({
         req(rv$data, input$selected_vars, rv$model)
         if (!is.null(rv$results$algorithm) && rv$results$algorithm == "acm") {
-            # ACM: plot eta² heatmap
+            # ACM: plot chi²-based association heatmap
             source("R/visualizations.R", local = TRUE)
-            plot_eta2_heatmap(rv$model)
+            plot_chi2_heatmap(rv$model, p_threshold = 0.05, show_p = FALSE)
         } else {
             plot_correlation_heatmap(rv$data, rv$results$clusters, input$selected_vars)
         }
@@ -730,7 +729,7 @@ function(input, output, session) {
                         verbatimTextOutput("metric_acmQ"),
                         tags$div(
                             class = "metric-info",
-                            "→ Overall quality of the ACM partition (sum of η²). Higher = more explanatory clusters."
+                            "→ Overall quality of the ACM partition (sum of χ² association scores). Higher = stronger associations."
                         )
                     )
                 }
