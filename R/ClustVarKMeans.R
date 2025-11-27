@@ -39,6 +39,7 @@ ClustVarKMeans <- R6::R6Class(
     #' @param K Number of clusters (default: 3)
     #' @param method Distance method: "correlation" or "euclidean" (default: "correlation")
     #' @param max_iter Maximum iterations for convergence (default: 100)
+    #' @param nstart Number of random starts used to initialize centroids (default: 10)
     #' @param seed Optional seed for reproducibility
     #' @return A new `ClustVarKMeans` object
     initialize = function(K = 3,
@@ -114,12 +115,12 @@ ClustVarKMeans <- R6::R6Class(
         initial_centers_idx <- numeric(self$K)
         initial_centers_idx[1] <- sample(n_vars, 1)
 
-        # Subsequent centers: probability proportional to D²
+        # Subsequent centers: probability proportional to D^2
         for (i in 2:self$K) {
           # Minimum distance of each variable to already chosen centers
           min_dists <- apply(dist_matrix[, initial_centers_idx[1:(i - 1)], drop = FALSE], 1, min)
 
-          # Probabilities proportional to D²
+          # Probabilities proportional to D^2
           probs <- min_dists^2
           probs[initial_centers_idx[1:(i - 1)]] <- 0 # Avoid re-selecting a center
 
@@ -220,7 +221,8 @@ ClustVarKMeans <- R6::R6Class(
 
     #' @description
     #' Predict cluster membership for new variables
-    #' @param X A data.frame or matrix with numeric variables to classify
+    #' @param newdata A data.frame or matrix with numeric variables to classify (observations as rows)
+    #' @param scaling How to scale `newdata`: one of `"self"` (scale newdata independently), `"training"` (use training scaling), or `"none"` (no scaling)
     #' @return A data.frame with variable names, assigned clusters, and distances
     predict = function(newdata, scaling = c("self", "training", "none")) {
       scaling <- match.arg(scaling)
@@ -553,7 +555,7 @@ ClustVarKMeans <- R6::R6Class(
         grid(col = "gray90", lty = "dotted")
       }
 
-      message(sprintf("✓ Elbow method selected K = %d", K_optimal))
+      message(sprintf("\u2713 Elbow method selected K = %d", K_optimal))
       return(K_optimal)
     }
   )

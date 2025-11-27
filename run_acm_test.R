@@ -9,7 +9,7 @@ if (!requireNamespace("FactoMineR", quietly = TRUE)) {
 if (!requireNamespace("R6", quietly = TRUE)) stop("R6 package required")
 
 # Source the class file
-source("R/algorithms/ClustVarACM.R")
+source("R/ClustVarACM.R")
 
 # Read dataset with robust separator detection and fallbacks
 data_path <- "datasets/vote_catvarclus.csv"

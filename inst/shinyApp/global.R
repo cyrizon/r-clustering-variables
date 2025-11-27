@@ -33,7 +33,7 @@ has_acm <- FALSE
 
 tryCatch(
     {
-        source("../../R/algorithms/ClustVarKMeans.R")
+        source("../../R/ClustVarKMeans.R")
         has_kmeans <<- TRUE
         message("✓ ClustVarKMeans loaded successfully")
     },
@@ -45,7 +45,7 @@ tryCatch(
 
 tryCatch(
     {
-        source("../../R/algorithms/ClustVarHAC.R")
+        source("../../R/ClustVarHAC.R")
         has_hac <<- TRUE
         message("✓ ClustVarHAC loaded successfully")
     },
@@ -57,7 +57,7 @@ tryCatch(
 
 tryCatch(
     {
-        source("../../R/algorithms/ClustVarACM.R")
+        source("../../R/ClustVarACM.R")
         has_acm <<- TRUE
         message("✓ ClustVarACM loaded successfully")
     },

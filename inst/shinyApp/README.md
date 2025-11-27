@@ -187,7 +187,7 @@ Variables in the same cluster have similar behavior across observations:
 
 For technical details about the K-means algorithm:
 
-- See `../../R/algorithms/ClustVarKMeans.R`
+- See `../../R/ClustVarKMeans.R`
 - Check documentation: `?ClustVarKMeans`
 
 ## 🎓 Academic Use

@@ -16,9 +16,6 @@
 library(testthat)
 library(R6)
 
-# Load the class under test
-source("../../R/algorithms/ClustVarKMeans.R")
-
 # ==============================================================================
 # 1. TESTS D'INITIALISATION
 # ==============================================================================

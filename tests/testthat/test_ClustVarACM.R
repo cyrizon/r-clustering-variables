@@ -18,9 +18,7 @@
 library(testthat)
 library(FactoMineR)
 library(R6)
-
-# Load the class under test
-source("../../R/algorithms/ClustVarACM.R")
+# Load the class under test (package is loaded by tests/testthat.R)
 
 # ==============================================
 # 1. Prepare a test dataset

@@ -30,7 +30,7 @@ Description:
   implemented with R6 object-oriented classes. 
   It also includes interpretation tools (plots, summaries, membership tables)
   and an integrated Shiny application for interactive exploration of results.
-License: MIT Licence
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends:

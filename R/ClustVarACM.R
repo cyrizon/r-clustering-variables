@@ -17,7 +17,7 @@ ClustVarACM <- R6::R6Class(
     clusters = NULL,
     #' @field axes_list list of length K, containing the factorial axis (first principal component) associated with each cluster
     axes_list = NULL,
-    #' @field score_matrix matrix (p x K) containing the association strength between each variable and each cluster axis; the score corresponds to 1-p_value from KHI² test
+    #' @field score_matrix matrix (p x K) containing the association strength between each variable and each cluster axis; the score corresponds to 1-p_value from KHI^2 test
     score_matrix = NULL,
     #' @field Q_trace numeric vector, holding the successive values ofr the criterion Q (sum of best scores)
     Q_trace = NULL,
@@ -95,7 +95,7 @@ ClustVarACM <- R6::R6Class(
             }
           }
 
-          # 2. Reallocation through KHI² test score calculation
+          # 2. Reallocation through KHI^2 test score calculation
           self$score_matrix <- matrix(0,
             nrow = p, ncol = self$K,
             dimnames = list(names(self$data), paste0("Cluster_", 1:self$K))
@@ -122,7 +122,7 @@ ClustVarACM <- R6::R6Class(
                 if (any(rowSums(tab) == 0) || any(colSums(tab) == 0)) {
                   score <- 0 # Avoid chi-square test with zero marginals
                 } else {
-                  # Calculate the association: 1 - p_value of the Khi² test
+                  # Calculate the association: 1 - p_value of the Khi^2 test
                   test <- suppressWarnings(chisq.test(tab, correct = FALSE))
                   pval <- test$p.value
                   # Guard against NA/NaN p-values (can occur with degenerate tables)
@@ -302,7 +302,7 @@ ClustVarACM <- R6::R6Class(
         xlab = paste("Association Score to Cluster", axes[1]),
         ylab = paste("Association Score to Cluster", axes[2]),
         main = "Projection des Variables sur les Axes de Clusters",
-        sub = "Couleur = Cluster Assigné (Score = 1 - p-value du Khi²)",
+        sub = "Couleur = Cluster Assigne (Score = 1 - p-value du Khi^2)",
         asp = 1 # Keep the axes at the same scale
       )
 
@@ -354,8 +354,8 @@ ClustVarACM <- R6::R6Class(
       # Visualization for the selection of K, based on criterion Q
       plot(results$K, results$Q,
         type = "b", pch = 19, col = "blue",
-        xlab = "Nombre de clusters (K)", ylab = "Critère global Q",
-        main = "Méthode du coude pour la sélection du K optimal"
+        xlab = "Nombre de clusters (K)", ylab = "Critere global Q",
+        main = "Methode du coude pour la selection du K optimal"
       )
       abline(v = K_opt, col = "red", lty = 2)
       text(K_opt, max(results$Q), labels = paste("K* =", K_opt), pos = 4, col = "red")
