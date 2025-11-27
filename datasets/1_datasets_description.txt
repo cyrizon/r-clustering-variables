@@ -1,5 +1,22 @@
-* acp_autos : 6 variables -> 3 clusters (cylindrée | performance : Vmax, Puiss | encombrement : Larg, Long, Poids) lien video : https://www.youtube.com/watch?v=OCQDHYaIF0k&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=7
-* jobrate : 12 variables + 1 variable illustrative (Overall_Rating) -> 4 clusters. lien de la video https://www.youtube.com/watch?v=Wwq20qxS2E8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=13
-* protein_datasets : 9 variables et difficile de s'accorder sur un nombre de clusters. Plutôt 2, 3 ou 4 suivant l'interprétation qu'on en fait et comment on tranche. lien video : https://www.youtube.com/watch?v=NEOWHKsZQqc
-* vote_catvarclus : variables qualitatives ! 6 variables explicatives et une illustrative : affiliation. 3 clusters (tous les neither ensemble | et des oui non sur d'autres sujets) https://www.youtube.com/watch?v=QVK3i44oGx8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=14
-* Autos2005 : données mixtes, aucune idée des clusters. video ressource sur les données mixtes : https://www.youtube.com/watch?v=Vhg0MKZ4t2E&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=15
+acp_voitures.csv
+- Description: Small automobile dataset (approximately 6 variables) often used for demonstration of PCA and variable clustering.
+- Typical interpretation: ~3 clusters: (1) engine displacement; (2) performance (top speed, power); (3) size/packaging (width, length, weight).
+- Example resource: https://www.youtube.com/watch?v=OCQDHYaIF0k&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=7
+
+jobrate.csv
+- Description: Job/employee rating dataset (~12 explanatory variables plus an illustrative variable `Overall_Rating`).
+- Typical interpretation: ~4 clusters in the original demo examples.
+- Example resource: https://www.youtube.com/watch?v=Wwq20qxS2E8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=13
+
+protein_dataset.csv
+- Description: Protein measurements dataset (about 9 variables). The appropriate number of clusters is ambiguous: 2, 3 or 4 clusters can all be defensible depending on interpretation.
+- Example resource: https://www.youtube.com/watch?v=NEOWHKsZQqc
+
+vote_catvarclus.csv
+- Description: Categorical variables only — typically 6 explanatory categorical variables and 1 illustrative variable (`affiliation`).
+- Typical interpretation: ~3 clusters (e.g., similar "neither" responses grouped, yes/no splits on other items).
+- Example resource: https://www.youtube.com/watch?v=QVK3i44oGx8&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=14
+
+AUTOS2005subset.txt
+- Description: Mixed data (numerical + categorical). No definitive clustering suggested by the original notes; used as an example of mixed-type data.
+- Example resource on mixed-data clustering: https://www.youtube.com/watch?v=Vhg0MKZ4t2E&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=15

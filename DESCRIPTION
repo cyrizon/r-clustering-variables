@@ -43,14 +43,16 @@ Imports:
   data.table,
   FactoMineR,
   pheatmap,
-  arrow
+  arrow,
+  tzdb
 Suggests:
   cluster,
   testthat,
   usethis,
   devtools,
   roxygen2,
-  roxygen2md
+  roxygen2md,
+  knitr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 VignetteBuilder: knitr
