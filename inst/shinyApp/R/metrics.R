@@ -8,10 +8,10 @@
 #' @param method character ("correlation" or "euclidean")
 #' @return list of metrics
 compute_simple_metrics <- function(X, clusters, method = "correlation") {
-    # Vérifier si toutes les variables sont numériques
+    # Check if all variables are numeric
     is_numeric <- sapply(X, is.numeric)
     if (!all(is_numeric)) {
-        # Si ACM ou variables non numériques, retourner NA et message
+        # If ACM or non-numeric variables, return NA and a message
         return(list(
             homogeneity = NA,
             separation = NA,
@@ -20,7 +20,7 @@ compute_simple_metrics <- function(X, clusters, method = "correlation") {
         ))
     }
 
-    # Standardiser les données si méthode euclidienne
+    # Standardize the data if using the euclidean method
     if (method == "euclidean") {
         X <- as.data.frame(scale(X))
     }
@@ -112,7 +112,7 @@ compute_cophenetic <- function(hac_model) {
     if (is.null(hac_model) || is.null(hac_model$model) || is.null(hac_model$dist_matrix)) {
         return(NA)
     }
-    # Utiliser la matrice de distance originale stockée
+    # Use the stored original distance matrix
     cophen <- cophenetic(hac_model$model)
     cor(hac_model$dist_matrix, cophen)
 }

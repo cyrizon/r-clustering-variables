@@ -35,7 +35,7 @@
     margin: 2px;
 }
 
-/* Griser les onglets désactivés (shinyjs::disable) */
+/* Grey out disabled tabs (shinyjs::disable) */
 .nav-tabs > li > a[disabled],
 .nav-tabs > li.disabled > a {
     color: #aaa !important;
@@ -46,7 +46,7 @@
     opacity: 0.7;
 }
 
-/* Griser les boutons désactivés (shinyjs::disable) */
+/* Grey out disabled buttons (shinyjs::disable) */
 button[disabled],
 .btn[disabled],
 a.btn[disabled] {

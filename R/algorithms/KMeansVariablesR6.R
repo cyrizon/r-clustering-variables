@@ -1,8 +1,8 @@
 #' Simple K-Means Clustering for Variables (Educational Implementation)
 #'
 #' @description
-#' Version simplifiée et pédagogique du K-Means pour clustering de variables.
-#' Illustre les concepts de base avec médoïdes et méthode du coude intégrée.
+#' A simplified, educational version of K-Means for variable clustering.
+#' Illustrates basic concepts with medoids and an integrated elbow method.
 #' Variables are grouped based on their similarity (correlation or euclidean distance).
 #'
 #' @export
@@ -77,7 +77,7 @@ KMeansVariablesR6 <- R6::R6Class(
         colnames(X) <- paste0("V", seq_len(ncol(X)))
       }
 
-      # === 2. PRÉPARATION DES DONNÉES ===
+      # === 2. DATA PREPARATION ===
       # Normalize data (center and scale) so all variables are comparable
       X_norm <- scale(X)
       self$data_fit <- X_norm

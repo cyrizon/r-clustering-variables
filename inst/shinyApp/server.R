@@ -676,13 +676,13 @@ function(input, output, session) {
                 error = function(e) NA
             )
         }
-        # Adaptation des descriptions selon la méthode
+        # Descriptions adapted to the distance method
         if (method == "correlation") {
-            homog_text <- "→ Moyenne des corrélations intra-cluster. Plus proche de 1 = variables très similaires. NA si cluster singleton."
-            sep_text <- "→ Moyenne des corrélations inter-cluster. Plus faible = clusters bien séparés."
+            homog_text <- "→ Mean intra-cluster correlations. Closer to 1 = variables are very similar. NA for singleton clusters."
+            sep_text <- "→ Mean inter-cluster correlations. Lower values indicate better separation between clusters."
         } else {
-            homog_text <- "→ Moyenne des distances euclidiennes intra-cluster (données standardisées). Plus faible = cohésion élevée. NA si cluster singleton."
-            sep_text <- "→ Moyenne des distances euclidiennes inter-cluster (données standardisées). Plus élevé = meilleure séparation."
+            homog_text <- "→ Mean intra-cluster Euclidean distances (data standardized). Lower values = higher cohesion. NA for singleton clusters."
+            sep_text <- "→ Mean inter-cluster Euclidean distances (data standardized). Higher values indicate better separation between clusters."
         }
 
         tagList(
@@ -712,7 +712,7 @@ function(input, output, session) {
             verbatimTextOutput("metric_silhouette"),
             tags$div(
                 class = "metric-info",
-                "→ Indique la qualité d’affectation des variables à leur cluster. >0.5 = bonne séparation, <0 = variables mal classées."
+                "→ Indicates the quality of variable assignments to their clusters. >0.5 = good separation, <0 = poorly assigned variables."
             ),
             if (!is.null(extra_metric)) {
                 if (rv$results$algorithm == "hac") {
@@ -721,7 +721,7 @@ function(input, output, session) {
                         verbatimTextOutput("metric_cophenetic"),
                         tags$div(
                             class = "metric-info",
-                            "→ Corrélation entre distances originales et structure du dendrogramme. Proche de 1 = structure fidèle. NA si non calculable."
+                            "→ Correlation between original distances and dendrogram structure. Close to 1 = faithful structure. NA if not computable."
                         )
                     )
                 } else if (rv$results$algorithm == "acm") {
@@ -730,7 +730,7 @@ function(input, output, session) {
                         verbatimTextOutput("metric_acmQ"),
                         tags$div(
                             class = "metric-info",
-                            "→ Qualité globale de la partition ACM (somme des η²). Plus élevé = clusters plus explicatifs."
+                            "→ Overall quality of the ACM partition (sum of η²). Higher = more explanatory clusters."
                         )
                     )
                 }

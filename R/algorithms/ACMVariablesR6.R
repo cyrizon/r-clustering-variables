@@ -1,6 +1,6 @@
-# Classe R6 pour le clustering de variables catégorielles via ACM
+# R6 class for categorical variable clustering via MCA (ACM)
 
-# --- Fonction utilitaire : calcul du η² (rapport de corrélation)
+# --- Utility function: compute η² (effect size measure)
 eta2_manual <- function(fac, z) {
   fac <- as.factor(fac)
   z <- as.numeric(z)
@@ -12,11 +12,11 @@ eta2_manual <- function(fac, z) {
   return(ss_between / ss_total)
 }
 
-# Cette classe permet d'encapsuler l'algorithme de  clustering de variables catégorielles via ACM
+# This class encapsulates the categorical variable clustering algorithm via MCA (ACM)
 ACMVariablesR6 <- R6::R6Class(
   classname = "ACMVariablesR6",
   public = list(
-    # === Attributs ===
+    # === Attributes ===
     k = NULL,
     max_iter = NULL,
     tol = NULL,
@@ -29,7 +29,7 @@ ACMVariablesR6 <- R6::R6Class(
     fitted = FALSE,
     data_fit = NULL,
 
-    # Constructeur
+    # Constructor
     initialize = function(k = 3, max_iter = 30, tol = 1e-4, verbose = FALSE) {
       self$k <- k
       self$max_iter <- max_iter
@@ -39,20 +39,20 @@ ACMVariablesR6 <- R6::R6Class(
     },
 
 
-    # Méthode fit
+    # Fit method
     fit = function(X) {
-      # Etape 0 : Contrôle
-      if (!is.data.frame(X)) stop("X doit être un data.frame")
+      # Step 0: input checks
+      if (!is.data.frame(X)) stop("X must be a data.frame")
       if (!all(sapply(X, function(x) is.factor(x) || is.character(x)))) {
-        stop("Toutes les variables doivent être catégorielles (factor ou character).")
+        stop("All variables must be categorical (factor or character).")
       }
-      if (anyNA(X)) stop("Les données ne doivent pas contenir de NA.")
-      if (self$k < 2 || self$k > ncol(X)) stop("k doit être compris entre 2 et le nombre de variables.")
+      if (anyNA(X)) stop("Data must not contain NA.")
+      if (self$k < 2 || self$k > ncol(X)) stop("k must be between 2 and the number of variables.")
 
-      # Stocker les données
+      # Store the data
       self$data_fit <- X
 
-      # Initialiser les clusters aléatoirement
+      # Initialize clusters randomly
       self$clusters <- sample(1:self$k, ncol(X), replace = TRUE)
 
       p <- ncol(X)
@@ -60,7 +60,7 @@ ACMVariablesR6 <- R6::R6Class(
       self$Q_trace <- c()
 
       for (iter in 1:self$max_iter) {
-        # Étape 1 : Calcul des axes (ACM)
+        # Step 1: compute axes (MCA)
         self$axes_list <- vector("list", self$k)
         for (clust_idx in 1:self$k) {
           vars_k <- names(self$data_fit)[self$clusters == clust_idx]
@@ -74,7 +74,7 @@ ACMVariablesR6 <- R6::R6Class(
           }
         }
 
-        # Étape 2 : Réallocation
+        # Step 2: reallocation
         self$eta2_matrix <- matrix(0,
           nrow = p, ncol = self$k,
           dimnames = list(names(self$data_fit), paste0("Cluster_", 1:self$k))
@@ -90,14 +90,14 @@ ACMVariablesR6 <- R6::R6Class(
         }
         new_clusters <- apply(self$eta2_matrix, 1, which.max)
 
-        # Étape 3 : Calcul du critère Q
+        # Step 3: compute the Q criterion
         Q_new <- sum(sapply(1:p, function(j) self$eta2_matrix[j, new_clusters[j]]), na.rm = TRUE)
         self$Q_trace <- c(self$Q_trace, Q_new)
-        if (self$verbose) cat(sprintf("Itération %2d : Q = %.4f\n", iter, Q_new))
+        if (self$verbose) cat(sprintf("Iteration %2d: Q = %.4f\n", iter, Q_new))
 
-        # Critère d'arrêt
+        # Stopping criterion
         if (abs(Q_new - Q_old) < self$tol) {
-          if (self$verbose) cat("→ Convergence atteinte (variation de Q < tolérance)\n")
+          if (self$verbose) cat("-> Convergence reached (Q change < tolerance)\n")
           break
         }
 
@@ -110,13 +110,13 @@ ACMVariablesR6 <- R6::R6Class(
       invisible(self)
     },
 
-    # Méthode summary / résumé
+    # Summary method
     summary = function() {
-      cat("---- Résumé du modèle ----\n")
-      cat("Nombre de clusters :", self$k, "\n")
-      cat("Critère Q final :", round(self$Q_final, 4), "\n")
-      cat("Qualité moyenne (Q/p) :", round(self$Q_final / ncol(self$data_fit), 4), "\n\n")
-      cat("Partition finale des variables :\n")
+      cat("---- Model Summary ----\n")
+      cat("Number of clusters:", self$k, "\n")
+      cat("Final Q criterion:", round(self$Q_final, 4), "\n")
+      cat("Average quality (Q/p):", round(self$Q_final / ncol(self$data_fit), 4), "\n\n")
+      cat("Final partition of variables:\n")
       print(data.frame(Variable = names(self$data_fit), Cluster = self$clusters))
 
       invisible(list(
@@ -126,54 +126,54 @@ ACMVariablesR6 <- R6::R6Class(
       ))
     },
 
-    #  Sélection automatique du k optimal
+    # Automatic selection of optimal k
     select_k = function(k_grid = 2:6, threshold = 0.1) {
-      if (!self$fitted) stop("Le modèle doit être ajusté avant de sélectionner k optimal.")
+      if (!self$fitted) stop("Model must be fitted before selecting optimal k.")
       results <- data.frame(k = k_grid, Q = NA)
       for (i in seq_along(k_grid)) {
-        if (self$verbose) cat("Test de k =", k_grid[i], "\n")
+        if (self$verbose) cat("Testing k =", k_grid[i], "\n")
         tmp <- ACMVariablesR6$new(k = k_grid[i], verbose = FALSE)
         tmp$fit(self$data_fit)
         results$Q[i] <- tmp$Q_final
       }
 
-      # Calcul des différences successives de Q
+      # Compute successive differences of Q
       dQ <- diff(results$Q)
       rel_gain <- dQ / max(dQ)
       k_opt <- results$k[which(rel_gain < threshold)[1] + 1]
       if (is.na(k_opt)) k_opt <- results$k[which.max(results$Q)]
 
-      # Visualisation
+      # Visualization
       plot(results$k, results$Q,
         type = "b", pch = 19, col = "blue",
-        xlab = "Nombre de clusters (k)", ylab = "Critère global Q",
-        main = "Méthode du coude pour la sélection du k optimal"
+        xlab = "Number of clusters (k)", ylab = "Global criterion Q",
+        main = "Elbow method for optimal k selection"
       )
       abline(v = k_opt, col = "red", lty = 2)
       text(k_opt, max(results$Q), labels = paste("k* =", k_opt), pos = 4, col = "red")
 
-      cat(sprintf("→ k optimal sélectionné automatiquement : %d (seuil %.0f%%)\n", k_opt, threshold * 100))
+      cat(sprintf("→ automatically selected optimal k: %d (threshold %.0f%%)\n", k_opt, threshold * 100))
       return(list(results = results, k_opt = k_opt))
     },
 
-    # Méthode pour la visualisation de la convergence de Q
+    # Method for plotting the Q convergence
     plot_Q = function() {
-      if (is.null(self$Q_trace)) stop("Le modèle n'a pas encore été ajusté (fit() non exécuté).")
+      if (is.null(self$Q_trace)) stop("The model has not been fitted yet (fit() not executed).")
       plot(self$Q_trace,
         type = "b", pch = 19, col = "blue",
-        xlab = "Itération", ylab = "Critère Q",
-        main = "Évolution du critère Q"
+        xlab = "Iteration", ylab = "Criterion Q",
+        main = "Q criterion evolution"
       )
     },
 
-    # Méthode predict pour de nouvelles variables
+    # Predict method for new variables
     predict = function(newdata) {
       if (is.null(self$axes_list)) {
-        stop("Le modèle doit être entraîné avec fit() avant d'utiliser predict().")
+        stop("The model must be trained with fit() before using predict().")
       }
-      if (!is.data.frame(newdata)) stop("Votre objet doit être un data.frame")
+      if (!is.data.frame(newdata)) stop("Your object must be a data.frame")
       if (!all(sapply(newdata, function(x) is.factor(x) || is.character(x)))) {
-        stop("Toutes les variables doivent être catégorielles (factor ou character).")
+        stop("All variables must be categorical (factor or character).")
       }
 
 
@@ -194,8 +194,8 @@ ACMVariablesR6 <- R6::R6Class(
       }
 
       clusters_pred <- apply(eta2_mat_new, 1, which.max)
-      cat("→ Nouvelles variables affectées à des clusters existants.\n")
-      return(data.frame(Variable = names(newdata), Cluster_Predit = clusters_pred))
+      cat("-> New variables assigned to existing clusters.\n")
+      return(data.frame(Variable = names(newdata), Cluster_Assigned = clusters_pred))
     }
   )
 )

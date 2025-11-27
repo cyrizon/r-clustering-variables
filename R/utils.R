@@ -1,5 +1,5 @@
-# Fonction utilitaire : calcul du η² (rapport de corrélation)
-# Mesure la proportion de la variance d'une variable quantitative expliquée par un facteur
+# Utility function: compute η² (effect size measure)
+# Measures the proportion of variance of a quantitative variable explained by a factor
 eta2_manual <- function(fac, z) {
     fac <- as.factor(fac)
     z <- as.numeric(z)

@@ -1,33 +1,33 @@
 # ==============================================================================
-# Tests unitaires pour la classe KMeansVariablesR6
+# Unit tests for the KMeansVariablesR6 class
 # ==============================================================================
-# Ce fichier contient une suite complète de tests pour valider le comportement
-# de l'algorithme K-means adapté au clustering de variables.
+# This file contains a comprehensive suite of tests to validate the behavior
+# of the K-means algorithm adapted for variable clustering.
 #
-# Organisation des tests :
-# 1. Tests d'initialisation
-# 2. Tests de validation des données
-# 3. Tests de la méthode fit()
-# 4. Tests de la méthode predict()
-# 5. Tests de la méthode elbow_method()
-# 6. Tests des méthodes utilitaires (print, summary, get_center_variables)
+# Test organization:
+# 1. Initialization tests
+# 2. Data validation tests
+# 3. Tests for the fit() method
+# 4. Tests for the predict() method
+# 5. Tests for the elbow_method() function
+# 6. Utility method tests (print, summary, get_center_variables)
 # ==============================================================================
 
 library(testthat)
 library(R6)
 
-# Charger la classe à tester
+# Load the class under test
 source("../../R/algorithms/KMeansVariablesR6.R")
 
 # ==============================================================================
 # 1. TESTS D'INITIALISATION
 # ==============================================================================
 
-test_that("KMeansVariablesR6 s'initialise correctement avec les paramètres par défaut", {
-    # Test : Création d'un objet avec les paramètres par défaut
+test_that("KMeansVariablesR6 initializes correctly with default parameters", {
+    # Test: create an object with default parameters
     model <- KMeansVariablesR6$new()
 
-    # Vérifications des valeurs par défaut
+    # Default checks
     expect_equal(model$k, 3)
     expect_equal(model$method, "correlation")
     expect_equal(model$max_iter, 100)
@@ -36,8 +36,8 @@ test_that("KMeansVariablesR6 s'initialise correctement avec les paramètres par 
     expect_null(model$seed)
 })
 
-test_that("KMeansVariablesR6 s'initialise avec des paramètres personnalisés", {
-    # Test : Création avec paramètres spécifiques
+test_that("KMeansVariablesR6 initializes with custom parameters", {
+    # Test: creation with specific parameters
     model <- KMeansVariablesR6$new(
         k = 5,
         method = "euclidean",
@@ -46,7 +46,7 @@ test_that("KMeansVariablesR6 s'initialise avec des paramètres personnalisés", 
         seed = 123
     )
 
-    # Vérifications
+    # Checks
     expect_equal(model$k, 5)
     expect_equal(model$method, "euclidean")
     expect_equal(model$max_iter, 50)
@@ -54,24 +54,24 @@ test_that("KMeansVariablesR6 s'initialise avec des paramètres personnalisés", 
     expect_equal(model$seed, 123)
 })
 
-test_that("La méthode de distance doit être valide", {
-    # Test : Méthode invalide doit lever une erreur
+test_that("Distance method must be valid", {
+    # Test: invalid method should throw an error
     expect_error(
         KMeansVariablesR6$new(method = "invalid_method"),
         "'arg' should be one of"
     )
 })
 
-# ==============================================================================
-# 2. TESTS DE VALIDATION DES DONNÉES
-# ==============================================================================
+# ============================================================================
+# 2. DATA VALIDATION TESTS
+# ============================================================================
 
-test_that("fit() rejette les données non numériques", {
-    # Test : Données avec colonnes non numériques
+test_that("fit() rejects non-numeric data", {
+    # Test: data with non-numeric columns
     model <- KMeansVariablesR6$new(k = 2)
     data_invalid <- data.frame(
         x1 = c(1, 2, 3),
-        x2 = c("a", "b", "c"), # Colonne non numérique
+        x2 = c("a", "b", "c"), # Non-numeric column
         x3 = c(4, 5, 6)
     )
 
@@ -81,8 +81,8 @@ test_that("fit() rejette les données non numériques", {
     )
 })
 
-test_that("fit() rejette les données avec valeurs manquantes", {
-    # Test : Données avec NA
+test_that("fit() rejects data with missing values", {
+    # Test: data containing NA
     model <- KMeansVariablesR6$new(k = 2)
     data_with_na <- data.frame(
         x1 = c(1, 2, NA),
@@ -96,8 +96,8 @@ test_that("fit() rejette les données avec valeurs manquantes", {
     )
 })
 
-test_that("fit() rejette un k invalide", {
-    # Test : k trop petit (< 2)
+test_that("fit() rejects an invalid k", {
+    # Test: k too small (< 2)
     model <- KMeansVariablesR6$new(k = 1)
     data <- data.frame(x1 = 1:10, x2 = 11:20, x3 = 21:30)
 
@@ -114,22 +114,22 @@ test_that("fit() rejette un k invalide", {
     )
 })
 
-test_that("fit() accepte une matrice en entrée", {
-    # Test : Les matrices doivent être acceptées comme les data.frames
+test_that("fit() accepts a matrix input", {
+    # Test: matrices should be accepted like data.frames
     model <- KMeansVariablesR6$new(k = 2, seed = 42)
     data_matrix <- matrix(rnorm(30), nrow = 10, ncol = 3)
 
-    # fit() produit un message de succès
+    # fit() produces a success message
     expect_message(model$fit(data_matrix), "Best of")
     expect_true(model$fitted)
 })
 
-# ==============================================================================
-# 3. TESTS DE LA MÉTHODE FIT()
-# ==============================================================================
+# ============================================================================
+# 3. TESTS FOR THE fit() METHOD
+# ============================================================================
 
-test_that("fit() crée des clusters avec la méthode correlation", {
-    # Test : Clustering basé sur la corrélation
+test_that("fit() creates clusters using the correlation method", {
+    # Test: clustering based on correlation
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50),
@@ -141,21 +141,21 @@ test_that("fit() crée des clusters avec la méthode correlation", {
     model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
     model$fit(data)
 
-    # Vérifications
+    # Checks
     expect_true(model$fitted)
     expect_equal(length(model$clusters), 2) # 2 clusters
     expect_equal(length(model$centers), 2) # 2 centres
     expect_true(is.numeric(model$inertia))
     expect_true(model$inertia >= 0)
 
-    # Vérifier que toutes les variables sont assignées
+    # Verify that all variables are assigned
     all_vars <- unlist(model$clusters)
     expect_equal(length(all_vars), 4)
     expect_setequal(all_vars, colnames(data))
 })
 
-test_that("fit() crée des clusters avec la méthode euclidean", {
-    # Test : Clustering basé sur la distance euclidienne
+test_that("fit() creates clusters using the euclidean method", {
+    # Test: clustering based on Euclidean distance
     set.seed(123)
     data <- data.frame(
         var1 = rnorm(50, mean = 0),
@@ -167,28 +167,28 @@ test_that("fit() crée des clusters avec la méthode euclidean", {
     model <- KMeansVariablesR6$new(k = 2, method = "euclidean", seed = 123)
     model$fit(data)
 
-    # Vérifications
+    # Checks
     expect_true(model$fitted)
     expect_equal(length(model$clusters), 2)
     expect_true(model$inertia >= 0)
 })
 
-test_that("fit() génère des noms de variables par défaut si absents", {
-    # Test : Données sans noms de colonnes
+test_that("fit() generates default variable names if absent", {
+    # Test: data without column names
     model <- KMeansVariablesR6$new(k = 2, seed = 42)
     data_matrix <- matrix(rnorm(40), nrow = 10, ncol = 4)
     # La matrice n'a pas de colnames initialement
 
     model$fit(data_matrix)
 
-    # Vérifier que des noms par défaut ont été générés (V1, V2, V3, V4)
+    # Verify that default names were generated (V1, V2, V3, V4)
     all_vars <- unlist(model$clusters)
     expect_true(all(grepl("^V[0-9]+$", all_vars)))
     expect_equal(length(all_vars), 4)
 })
 
-test_that("fit() avec plusieurs départs (nstart) améliore la solution", {
-    # Test : nstart > 1 doit potentiellement améliorer l'inertie
+test_that("fit() with multiple starts (nstart) improves the solution", {
+    # Test: nstart > 1 should potentially improve inertia
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50),
@@ -198,20 +198,20 @@ test_that("fit() avec plusieurs départs (nstart) améliore la solution", {
         var5 = rnorm(50)
     )
 
-    # Modèle avec 1 seul départ
+    # Model with 1 random start
     model1 <- KMeansVariablesR6$new(k = 3, nstart = 1, seed = 42)
     model1$fit(data)
 
-    # Modèle avec 20 départs
+    # Model with 20 random starts
     model2 <- KMeansVariablesR6$new(k = 3, nstart = 20, seed = 42)
     model2$fit(data)
 
-    # L'inertie avec plus de départs devrait être <= (meilleure ou égale)
+    # Inertia with more starts should be <= (better or equal)
     expect_lte(model2$inertia, model1$inertia)
 })
 
-test_that("fit() stocke correctement les paramètres de normalisation", {
-    # Test : Les paramètres de scaling doivent être stockés
+test_that("fit() stores normalization parameters correctly", {
+    # Test: scaling parameters should be stored
     data <- data.frame(
         var1 = c(1, 2, 3, 4, 5),
         var2 = c(10, 20, 30, 40, 50),
@@ -221,19 +221,19 @@ test_that("fit() stocke correctement les paramètres de normalisation", {
     model <- KMeansVariablesR6$new(k = 2, seed = 42)
     model$fit(data)
 
-    # Vérifier que scale_center et scale_scale sont stockés
+    # Verify that scale_center and scale_scale are stored
     expect_equal(length(model$scale_center), 3)
     expect_equal(length(model$scale_scale), 3)
     expect_true(all(!is.na(model$scale_center)))
     expect_true(all(!is.na(model$scale_scale)))
 })
 
-# ==============================================================================
-# 4. TESTS DE LA MÉTHODE PREDICT()
-# ==============================================================================
+# ============================================================================
+# 4. TESTS FOR THE predict() METHOD
+# ============================================================================
 
-test_that("predict() nécessite un modèle ajusté", {
-    # Test : predict() sans fit() préalable doit échouer
+test_that("predict() requires a fitted model", {
+    # Test: predict() without prior fit() should fail
     model <- KMeansVariablesR6$new(k = 2)
     new_data <- data.frame(new_var = rnorm(50))
 
@@ -243,8 +243,8 @@ test_that("predict() nécessite un modèle ajusté", {
     )
 })
 
-test_that("predict() rejette les données avec nombre d'observations différent", {
-    # Test : Les nouvelles données doivent avoir le même nombre de lignes
+test_that("predict() rejects data with a different number of observations", {
+    # Test: new data must have the same number of rows
     set.seed(42)
     train_data <- data.frame(
         var1 = rnorm(50), # 50 observations
@@ -254,7 +254,7 @@ test_that("predict() rejette les données avec nombre d'observations différent"
     model <- KMeansVariablesR6$new(k = 2, seed = 42)
     model$fit(train_data)
 
-    # Données avec 30 observations (différent de 50)
+    # Data with 30 observations (different from 50)
     new_data <- data.frame(new_var = rnorm(30))
 
     expect_error(
@@ -263,8 +263,8 @@ test_that("predict() rejette les données avec nombre d'observations différent"
     )
 })
 
-test_that("predict() assigne correctement les nouvelles variables (scaling='self')", {
-    # Test : Prédiction avec normalisation indépendante
+test_that("predict() assigns new variables correctly (scaling='self')", {
+    # Test: prediction with independent normalization
     set.seed(42)
     train_data <- data.frame(
         var1 = rnorm(50, mean = 0, sd = 1),
@@ -275,7 +275,7 @@ test_that("predict() assigne correctement les nouvelles variables (scaling='self
     model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
     model$fit(train_data)
 
-    # Nouvelles variables à prédire
+    # New variables to predict
     new_data <- data.frame(
         new_var1 = rnorm(50, mean = 0, sd = 1),
         new_var2 = rnorm(50, mean = 5, sd = 2)
@@ -283,7 +283,7 @@ test_that("predict() assigne correctement les nouvelles variables (scaling='self
 
     predictions <- model$predict(new_data, scaling = "self")
 
-    # Vérifications
+    # Checks
     expect_s3_class(predictions, "data.frame")
     expect_equal(nrow(predictions), 2) # 2 nouvelles variables
     expect_equal(ncol(predictions), 3) # variable, cluster, distance
@@ -292,10 +292,10 @@ test_that("predict() assigne correctement les nouvelles variables (scaling='self
     expect_true(all(!is.na(predictions$distance)))
 })
 
-test_that("predict() fonctionne avec scaling='training'", {
-    # Test : Prédiction avec paramètres de normalisation de l'entraînement
-    # Note : scaling='training' nécessite que les nouvelles données aient
-    # le même nombre de variables que les données d'entraînement
+test_that("predict() works with scaling='training'", {
+    # Test: prediction using training normalization parameters
+    # Note: scaling='training' requires new data to have the same
+    # number of variables as the training data
     set.seed(42)
     train_data <- data.frame(
         var1 = rnorm(50, mean = 10, sd = 2),
@@ -306,7 +306,7 @@ test_that("predict() fonctionne avec scaling='training'", {
     model <- KMeansVariablesR6$new(k = 2, seed = 42)
     model$fit(train_data)
 
-    # Les nouvelles données doivent avoir le même nombre de colonnes (3)
+    # The new data must have the same number of columns (3)
     new_data <- data.frame(
         new_var1 = rnorm(50, mean = 10, sd = 2),
         new_var2 = rnorm(50, mean = 10, sd = 2),
@@ -319,8 +319,8 @@ test_that("predict() fonctionne avec scaling='training'", {
     expect_equal(nrow(predictions), 3)
 })
 
-test_that("predict() fonctionne avec scaling='none'", {
-    # Test : Prédiction sans normalisation
+test_that("predict() works with scaling='none'", {
+    # Test: prediction without normalization
     set.seed(42)
     train_data <- data.frame(
         var1 = rnorm(50),
@@ -337,8 +337,8 @@ test_that("predict() fonctionne avec scaling='none'", {
     expect_true(all(!is.na(predictions$cluster)))
 })
 
-test_that("predict() génère des noms de variables par défaut si absents", {
-    # Test : Prédiction avec données sans nom de colonnes
+test_that("predict() generates default variable names if absent", {
+    # Test: prediction with data without column names
     set.seed(42)
     train_data <- data.frame(var1 = rnorm(50), var2 = rnorm(50))
 
@@ -353,12 +353,12 @@ test_that("predict() génère des noms de variables par défaut si absents", {
     expect_true(grepl("^V[0-9]+$", predictions$variable[1]))
 })
 
-# ==============================================================================
-# 5. TESTS DE LA MÉTHODE ELBOW_METHOD()
-# ==============================================================================
+# ============================================================================
+# 5. TESTS FOR THE ELBOW_METHOD()
+# ============================================================================
 
-test_that("elbow_method() calcule l'inertie pour différentes valeurs de k", {
-    # Test : La méthode du coude doit retourner un k optimal
+test_that("elbow_method() computes inertia for different k values", {
+    # Test: the elbow method should return an optimal k
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50),
@@ -371,16 +371,16 @@ test_that("elbow_method() calcule l'inertie pour différentes valeurs de k", {
 
     model <- KMeansVariablesR6$new(seed = 42)
 
-    # Exécuter elbow_method sans graphique
+    # Run elbow_method without plotting
     k_opt <- model$elbow_method(data, k_min = 2, k_max = 5, plot = FALSE)
 
-    # Vérifications
+    # Checks
     expect_true(is.numeric(k_opt))
     expect_true(k_opt >= 2 && k_opt <= 5)
 })
 
-test_that("elbow_method() rejette les données invalides", {
-    # Test : Données avec NA doivent être rejetées
+test_that("elbow_method() rejects invalid data", {
+    # Test: data with NA should be rejected
     model <- KMeansVariablesR6$new()
     data_with_na <- data.frame(
         var1 = c(1, 2, NA),
@@ -394,10 +394,10 @@ test_that("elbow_method() rejette les données invalides", {
     )
 })
 
-test_that("elbow_method() ajuste k_max si trop grand", {
-    # Test : k_max > nombre de variables - 1 doit être ajusté automatiquement
+test_that("elbow_method() adjusts k_max if too large", {
+    # Test: k_max > number of variables - 1 should be adjusted automatically
     set.seed(42)
-    # Utilisons 8 variables pour avoir une plage suffisante (k de 2 à 7)
+    # Use 8 variables to provide a sufficient range (k from 2 to 7)
     data <- data.frame(
         var1 = rnorm(50),
         var2 = rnorm(50),
@@ -412,17 +412,17 @@ test_that("elbow_method() ajuste k_max si trop grand", {
     model <- KMeansVariablesR6$new(seed = 42)
 
     # k_max = 20 mais seulement 8 variables (max possible = 7)
-    # La méthode doit ajuster k_max à 7 automatiquement
+    # The method should adjust k_max to 7 automatically
     k_opt <- model$elbow_method(data, k_min = 2, k_max = 20, plot = FALSE)
 
-    # Le k optimal doit être valide (entre 2 et 7)
+    # The optimal k must be valid (between 2 and 7)
     expect_true(is.numeric(k_opt))
     expect_equal(length(k_opt), 1) # Doit retourner une seule valeur
     expect_true(k_opt >= 2 && k_opt <= 7) # Maximum possible avec 8 variables
 })
 
-test_that("elbow_method() fonctionne avec différentes méthodes de distance", {
-    # Test : elbow_method avec méthode euclidean
+test_that("elbow_method() works with different distance methods", {
+    # Test: elbow_method with euclidean method
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50, mean = 0),
@@ -438,12 +438,12 @@ test_that("elbow_method() fonctionne avec différentes méthodes de distance", {
     expect_true(k_opt >= 2 && k_opt <= 4)
 })
 
-# ==============================================================================
-# 6. TESTS DES MÉTHODES UTILITAIRES
-# ==============================================================================
+# ============================================================================
+# 6. UTILITY METHOD TESTS
+# ============================================================================
 
-test_that("get_center_variables() retourne les noms des centres", {
-    # Test : Récupération des variables centres (medoids)
+test_that("get_center_variables() returns the center variable names", {
+    # Test: retrieval of center variables (medoids)
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50),
@@ -456,13 +456,13 @@ test_that("get_center_variables() retourne les noms des centres", {
 
     centers <- model$get_center_variables()
 
-    # Vérifications
+    # Checks
     expect_equal(length(centers), 2) # 2 clusters = 2 centres
     expect_true(all(centers %in% colnames(data)))
 })
 
-test_that("get_center_variables() échoue si le modèle n'est pas ajusté", {
-    # Test : Appel avant fit() doit échouer
+test_that("get_center_variables() fails if the model is not fitted", {
+    # Test: calling before fit() should fail
     model <- KMeansVariablesR6$new(k = 2)
 
     expect_error(
@@ -471,8 +471,8 @@ test_that("get_center_variables() échoue si le modèle n'est pas ajusté", {
     )
 })
 
-test_that("print() affiche les informations du modèle", {
-    # Test : La méthode print ne doit pas lever d'erreur
+test_that("print() displays model information", {
+    # Test: print method should not throw an error
     set.seed(42)
     data <- data.frame(var1 = rnorm(50), var2 = rnorm(50))
 
@@ -483,8 +483,8 @@ test_that("print() affiche les informations du modèle", {
     expect_output(model$print(), "fitted: TRUE")
 })
 
-test_that("summary() affiche un résumé détaillé", {
-    # Test : La méthode summary affiche des informations complètes
+test_that("summary() displays a detailed summary", {
+    # Test: summary method shows comprehensive information
     set.seed(42)
     data <- data.frame(
         var1 = rnorm(50),
@@ -500,15 +500,15 @@ test_that("summary() affiche un résumé détaillé", {
     expect_output(model$summary(), "Total inertia")
 })
 
-# ==============================================================================
-# 7. TESTS D'INTÉGRATION ET CAS LIMITES
-# ==============================================================================
+# ============================================================================
+# 7. INTEGRATION TESTS AND EDGE CASES
+# ============================================================================
 
-test_that("Workflow complet : fit() puis predict()", {
-    # Test d'intégration : Scénario complet d'utilisation
+test_that("Full workflow: fit() then predict()", {
+    # Integration test: complete usage scenario
     set.seed(42)
 
-    # 1. Créer des données d'entraînement
+    # 1. Create training data
     train_data <- data.frame(
         height = rnorm(100, mean = 170, sd = 10),
         weight = rnorm(100, mean = 70, sd = 15),
@@ -516,15 +516,15 @@ test_that("Workflow complet : fit() puis predict()", {
         salary = rnorm(100, mean = 50000, sd = 10000)
     )
 
-    # 2. Initialiser et ajuster le modèle
+    # 2. Initialize and fit the model
     model <- KMeansVariablesR6$new(k = 2, method = "correlation", seed = 42)
     model$fit(train_data)
 
-    # 3. Vérifier l'ajustement
+    # 3. Check the fit
     expect_true(model$fitted)
     expect_equal(length(model$clusters), 2)
 
-    # 4. Prédire sur de nouvelles variables
+    # 4. Predict on new variables
     new_data <- data.frame(
         shoe_size = rnorm(100, mean = 42, sd = 2),
         income = rnorm(100, mean = 55000, sd = 12000)
@@ -532,38 +532,38 @@ test_that("Workflow complet : fit() puis predict()", {
 
     predictions <- model$predict(new_data)
 
-    # 5. Vérifier les prédictions
+    # 5. Verify predictions
     expect_equal(nrow(predictions), 2)
     expect_true(all(predictions$cluster %in% 1:2))
 
-    # 6. Obtenir un résumé
+    # 6. Obtain a summary
     expect_output(model$summary(), "KMeansVariablesR6 Summary")
 })
 
-test_that("Le modèle est reproductible avec une graine fixée", {
-    # Test : Même graine = mêmes résultats
+test_that("Model is reproducible with a fixed seed", {
+    # Test: same seed = same results
     data <- data.frame(
         var1 = rnorm(50),
         var2 = rnorm(50),
         var3 = rnorm(50)
     )
 
-    # Premier ajustement
+    # First fit
     model1 <- KMeansVariablesR6$new(k = 2, seed = 999)
     model1$fit(data)
     inertia1 <- model1$inertia
 
-    # Second ajustement avec la même graine
+    # Second fit with the same seed
     model2 <- KMeansVariablesR6$new(k = 2, seed = 999)
     model2$fit(data)
     inertia2 <- model2$inertia
 
-    # Les inerties devraient être identiques
+    # The inertias should be identical
     expect_equal(inertia1, inertia2)
 })
 
-test_that("Le modèle gère correctement un grand nombre de variables", {
-    # Test : Performance avec beaucoup de variables
+test_that("Model handles a large number of variables correctly", {
+    # Test: performance with many variables
     set.seed(42)
     n_vars <- 20
     data <- as.data.frame(matrix(rnorm(50 * n_vars), nrow = 50, ncol = n_vars))
@@ -571,14 +571,14 @@ test_that("Le modèle gère correctement un grand nombre de variables", {
 
     model <- KMeansVariablesR6$new(k = 5, seed = 42, nstart = 5)
 
-    # fit() produit un message de succès, donc on utilise expect_message
+    # fit() produces a success message, so use expect_message
     expect_message(model$fit(data), "Best of")
     expect_true(model$fitted)
     expect_equal(length(unlist(model$clusters)), n_vars)
 })
 
-# ==============================================================================
-# MESSAGE DE FIN DES TESTS
-# ==============================================================================
+# ============================================================================
+# END OF TESTS MESSAGE
+# ============================================================================
 
-message("\n✓ Tests unitaires KMeansVariablesR6 terminés avec succès!")
+message("\n✓ KMeansVariablesR6 unit tests completed successfully!")

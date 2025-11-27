@@ -1,16 +1,16 @@
 # ==============================================================================
 # Unit-Tests for the R package clustVarACC
 # ==============================================================================
-# Ce fichier lance automatiquement tous les tests unitaires du package
-# lors de l'exécution de devtools::test() ou R CMD check
+# This file automatically runs all unit tests for the package
+# when running devtools::test() or R CMD check
 #
-# Pour exécuter les tests :
-# - Depuis R : devtools::test()
-# - En ligne de commande : R CMD check
+# To run the tests:
+# - From R: devtools::test()
+# - From the command line: R CMD check
 # ==============================================================================
 
 library(testthat)
 library(clustVarACC)
 
-# Lancer tous les tests dans le répertoire testthat/
+# Run all tests in the testthat/ directory
 test_check("clustVarACC")

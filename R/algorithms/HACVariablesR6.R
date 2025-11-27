@@ -1,67 +1,67 @@
-#' Classe R6 pour le Clustering Hiérarchique Agglomératif (HAC) de Variables
+#' R6 class for Hierarchical Agglomerative Clustering (HAC) of variables
 #'
-#' Cette classe encapsule l'algorithme HAC pour le clustering de variables.
-#' Elle utilise la fonction de base R hclust().
+#' This class wraps the HAC algorithm for variable clustering.
+#' It uses the base R function hclust().
 
 HACVariablesR6 <- R6::R6Class(
     "HACVariablesR6",
     public = list(
-        # --- PROPRIÉTÉS (Champs) ---
-        k = NULL, # Nombre de clusters désiré (pour couper l'arbre)
-        method = NULL, # Méthode de calcul de distance ("correlation" ou "euclidean")
-        linkage_method = NULL, # Méthode d'agrégation (linkage) pour hclust ("ward.D2", "complete", etc.)
-        model = NULL, # Stocke l'objet hclust résultant du fit
-        dist_matrix = NULL, # Matrice de distance utilisée pour hclust
-        clusters = NULL, # Liste nommée des variables par cluster
-        fitted = FALSE, # Statut du fit du modèle
-        data_fit = NULL, # Données (normalisées et transposées) utilisées pour le fit
+        # --- PROPERTIES (Fields) ---
+        k = NULL, # Desired number of clusters (for cutting the tree)
+        method = NULL, # Distance calculation method ("correlation" or "euclidean")
+        linkage_method = NULL, # Agglomeration (linkage) method for hclust ("ward.D2", "complete", etc.)
+        model = NULL, # Stores the hclust object resulting from fit
+        dist_matrix = NULL, # Distance matrix used for hclust
+        clusters = NULL, # Named list of variables per cluster
+        fitted = FALSE, # Fit status of the model
+        data_fit = NULL, # Data (normalized and transposed) used for fitting
 
-        # --- CONSTRUCTEUR ---
+        # --- CONSTRUCTOR ---
         initialize = function(k = 2, method = "correlation", linkage_method = "ward.D2") {
-            # Le constructeur définit les paramètres initiaux
+            # Constructor: set initial parameters
             self$k <- k
             self$method <- method
             self$linkage_method <- linkage_method
         },
 
-        # --- MÉTHODE FIT : Ajustement du modèle sur X ---
+        # --- fit METHOD: Fit the model on X ---
         fit = function(X) {
-            # 1. Vérifications et Pré-traitement
-            if (!is.data.frame(X) && !is.matrix(X)) stop("X doit être un data.frame ou une matrice.")
-            if (!all(sapply(X, is.numeric))) stop("Toutes les variables doivent être numériques.")
-            if (anyNA(X)) stop("Les données ne doivent pas contenir de NA.")
+            # 1. Checks and preprocessing
+            if (!is.data.frame(X) && !is.matrix(X)) stop("X must be a data.frame or matrix.")
+            if (!all(sapply(X, is.numeric))) stop("All variables must be numeric.")
+            if (anyNA(X)) stop("Data must not contain NA.")
 
-            # 2. Pré-traitement : Normalisation (centrage et réduction)
+            # 2. Preprocessing: normalization (center and scale)
             X_norm <- scale(X)
 
             # 3. Calculer la Matrice de Distance entre les VARIABLES
             if (self$method == "correlation") {
-                # Distance basée sur la corrélation absolue (1 - |r|)
+                # Distance based on absolute correlation (1 - |r|)
                 dist_mat <- stats::as.dist(1 - abs(stats::cor(X_norm)))
             } else if (self$method == "euclidean") {
-                # Distance euclidienne sur la transposée (variables comme lignes)
+                # Euclidean distance on the transpose (variables as rows)
                 dist_mat <- stats::dist(t(X_norm))
             } else {
-                stop("Méthode de distance non reconnue. Utilisez 'correlation' ou 'euclidean'.")
+                stop("Unrecognized distance method. Use 'correlation' or 'euclidean'.")
             }
 
-            # Stocke les données normalisées transposées pour un usage ultérieur (p. ex. predict)
+            # Store normalized transposed data for later use (e.g., predict)
             self$data_fit <- t(X_norm)
-            # Stocke la matrice de distance pour le calcul de la corrélation cophénétique
+            # Store the distance matrix for cophenetic correlation calculation
             self$dist_matrix <- dist_mat
 
-            # 4. Appliquer HAC (hclust)
+            # 4. Apply HAC (hclust)
             hcl <- stats::hclust(dist_mat, method = self$linkage_method)
 
-            # 5. Stocker les Résultats
+            # 5. Store the results
             self$model <- hcl
 
-            # Couper l'arbre pour obtenir les clusters (coupe basée sur k)
+            # Cut the tree to obtain clusters (cut based on k)
             if (self$k > 1 && self$k < ncol(X)) {
                 cluster_assignment <- stats::cutree(hcl, k = self$k)
                 self$clusters <- split(colnames(X), cluster_assignment)
             } else {
-                warning("Le nombre de clusters 'k' doit être entre 2 et le nombre de variables")
+                warning("The number of clusters 'k' must be between 2 and the number of variables")
                 self$clusters <- NULL
             }
 
@@ -69,33 +69,33 @@ HACVariablesR6 <- R6::R6Class(
             invisible(self)
         },
 
-        # Predict : Rattache les variables dans X (variables illustratives) au meilleur cluster
-        # X doit contenir les mêmes observations (lignes) que les données d'entraînement, dans le même ordre.
+        # Predict: attach variables in X (illustrative variables) to the best cluster
+        # X must contain the same observations (rows) as the training data, in the same order.
         predict = function(X) {
-            if (!self$fitted) stop("Le modèle doit être ajusté avec $fit() avant la prédiction.")
-            if (!is.data.frame(X) && !is.matrix(X)) stop("X doit être un data.frame ou une matrice.")
-            if (!all(sapply(X, is.numeric))) stop("Toutes les variables doivent être numériques.")
+            if (!self$fitted) stop("Model must be fitted with $fit() before prediction.")
+            if (!is.data.frame(X) && !is.matrix(X)) stop("X must be a data.frame or matrix.")
+            if (!all(sapply(X, is.numeric))) stop("All variables must be numeric.")
 
-            # VÉRIFICATION CRITIQUE (Doit être gérée en externe/par l'utilisateur mais bon d'avertir)
+            # CRITICAL CHECK (Should be handled externally/by the user but good to warn)
             if (nrow(X) != ncol(self$data_fit)) {
-                stop("X doit avoir le même nombre d'observations (lignes) que les données utilisées pour l'ajustement.")
+                stop("X must have the same number of observations (rows) as the data used for fitting.")
             }
 
-            # 1. Normalisation (identique à fit)
-            # La normalisation doit être faite indépendamment sur X car ce sont de nouvelles variables.
+            # 1. Normalization (same as in fit)
+            # Normalization must be done independently on X because these are new variables.
             X_pred_norm <- scale(X)
 
             # 2. Extraire les noms des variables originales
             original_vars <- unlist(self$clusters)
             illustrative_vars <- colnames(X)
 
-            # 3. Combiner les données (originales et illustratives) pour le calcul de corrélation
-            # On a besoin des variables originales en colonnes (t(self$data_fit))
-            # et des nouvelles variables en colonnes (X_pred_norm).
+            # 3. Combine original and illustrative data for correlation computation
+            # We need original variables as columns (t(self$data_fit))
+            # and new variables as columns (X_pred_norm).
             X_all <- cbind(t(self$data_fit), X_pred_norm)
 
-            # 4. Calculer la matrice de corrélation entre les variables illustratives et TOUTES les variables originales
-            # Corréler les variables X (lignes) avec les variables originales (colonnes)
+            # 4. Compute correlation matrix between illustrative variables and ALL original variables
+            # Correlate variables X (rows) with original variables (columns)
             cor_mat_all <- stats::cor(X_all)
             cor_mat_pred <- cor_mat_all[illustrative_vars, original_vars, drop = FALSE]
 
@@ -105,13 +105,13 @@ HACVariablesR6 <- R6::R6Class(
                 avg_correlation = NA
             )
 
-            # 5. Affectation : Attribuer au cluster avec la plus haute corrélation absolue moyenne
+            # 5. Assignment: assign to the cluster with the highest mean absolute correlation
             for (i in seq_along(illustrative_vars)) {
                 var_name <- illustrative_vars[i]
 
-                # Calculer la corrélation absolue moyenne aux variables de chaque cluster existant
+                # Compute the mean absolute correlation to variables of each existing cluster
                 avg_corrs <- sapply(self$clusters, function(cluster_vars) {
-                    # Prendre les valeurs de corrélation pour la variable illustrative actuelle (var_name)
+                    # Take the correlation values for the current illustrative variable (var_name)
                     # uniquement pour les variables appartenant au cluster (cluster_vars)
                     mean(abs(cor_mat_pred[var_name, cluster_vars]))
                 })
@@ -119,78 +119,78 @@ HACVariablesR6 <- R6::R6Class(
                 best_cluster <- which.max(avg_corrs)
 
                 cluster_pred[i, "cluster"] <- best_cluster
-                cluster_pred[i, "avg_correlation"] <- max(avg_corrs) # Indicateur numérique
+                cluster_pred[i, "avg_correlation"] <- max(avg_corrs) # Numeric indicator
             }
 
             return(cluster_pred)
         },
 
-        # plot : Trace l'arbre de clustering hiérarchique (Dendrogramme)
+        # plot: Draw the hierarchical clustering tree (dendrogram)
         plot = function(k = self$k) {
-            if (!self$fitted) stop("Le modèle doit être ajusté avec $fit() avant le traçage.")
+            if (!self$fitted) stop("Model must be fitted with $fit() before plotting.")
 
-            # L'argument horiz=TRUE est transmis directement à plot.hclust
-            # Le système R génère souvent des avertissements si les autres paramètres
-            # (comme xlab, ylab) sont utilisés en même temps, car ils sont gérés différemment.
+            # The horiz=TRUE argument is passed directly to plot.hclust
+            # R may produce warnings when other parameters (like xlab, ylab)
+            # are used simultaneously because they are handled differently.
 
-            # Solution pour le rendu horizontal : utiliser le paramètre standard de plot.hclust
-            # Note : on simplifie les labels pour réduire le risque d'avertissements de transmission.
+            # For horizontal rendering: use the standard plot.hclust parameter
+            # Note: simplify labels to reduce the risk of plotting parameter warnings.
 
             plot(self$model,
-                main = paste("HAC des Variables (Lien:", self$linkage_method, ")"),
+                main = paste("HAC of Variables (Linkage:", self$linkage_method, ")"),
                 xlab = "Distance",
                 ylab = "Variables",
                 sub = "",
-                horiz = TRUE # C'est la façon correcte de le faire
+                horiz = TRUE
             )
 
-            # Correction de l'erreur de namespace (utilisation de stats::)
+            # Fix for namespace issue (use stats::)
             if (k > 1 && k < length(self$model$labels)) {
                 stats::rect.hclust(self$model, k = k, border = 2:(k + 1))
             }
             invisible(self)
         },
 
-        # Print : Affiche les informations succinctes sur le modèle
+        # Print: display concise model information
         print = function() {
-            cat("Modèle HACVariablesR6\n")
+            cat("HACVariablesR6 Model\n")
             cat("--------------------\n")
             cat(
-                "k (Coupe):", self$k,
+                "k (Cut):", self$k,
                 "| Distance:", self$method,
-                "| Lien:", self$linkage_method,
-                "| Ajusté:", self$fitted, "\n"
+                "| Linkage:", self$linkage_method,
+                "| Fitted:", self$fitted, "\n"
             )
             if (self$fitted && !is.null(self$clusters)) {
-                cat("Variables par cluster (k =", self$k, ") :\n")
-                # Affiche le nombre de variables dans chaque cluster
+                cat("Variables per cluster (k =", self$k, ") :\n")
+                # Print the number of variables in each cluster
                 print(sapply(self$clusters, length))
             }
             invisible(self)
         },
 
-        # Summary : Affiche les informations détaillées sur le modèle
+        # Summary: display detailed model information
         summary = function() {
-            cat("Résumé HACVariablesR6\n")
+            cat("HACVariablesR6 Summary\n")
             cat("----------------------\n")
-            cat("Paramètres du Modèle:\n")
-            cat("  Nombre de clusters (k):", self$k, "\n")
-            cat("  Méthode de distance:", self$method, "\n")
-            cat("  Méthode de lien:", self$linkage_method, "\n")
-            cat("  Statut:", ifelse(self$fitted, "Ajusté", "Non Ajusté"), "\n")
+            cat("Model parameters:\n")
+            cat("  Number of clusters (k):", self$k, "\n")
+            cat("  Distance method:", self$method, "\n")
+            cat("  Linkage method:", self$linkage_method, "\n")
+            cat("  Status:", ifelse(self$fitted, "Fitted", "Not fitted"), "\n")
 
             if (self$fitted && !is.null(self$clusters)) {
-                cat("\nComposition des Clusters (k =", self$k, "):\n")
+                cat("\nCluster composition (k =", self$k, "):\n")
 
-                # Liste les variables dans chaque cluster (informations détaillées)
+                # List variables in each cluster (detailed info)
                 for (cluster_name in names(self$clusters)) {
                     vars <- self$clusters[[cluster_name]]
                     cat("  Cluster", cluster_name, "(N =", length(vars), "):", paste(vars, collapse = ", "), "\n")
                 }
 
-                cat("\nGuide des Outils d'Interprétation:\n")
-                cat("  - Pour visualiser le dendrogramme (structure arborescente): appelez $plot().\n")
-                cat("  - Pour prédire de nouvelles variables: appelez $predict(X_new).\n")
+                cat("\nInterpretation tools guide:\n")
+                cat("  - To view the dendrogram (tree structure): call $plot().\n")
+                cat("  - To predict new variables: call $predict(X_new).\n")
             }
             invisible(self)
         }

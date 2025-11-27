@@ -1,5 +1,5 @@
-#' Classe R6 pour l'interprétation des résultats de clustering de variables
+#' R6 class for interpreting variable clustering results
 #'
-#' Permet de générer des tableaux et indicateurs pour interpréter la nature des groupes et le degré d'appartenance.
+#' Generates tables and indicators to interpret the nature of groups and membership strength.
 #'
-# ICI ON AURA LA CLASSE ClusterInterpretationR6
+#' TODO: Implement the ClusterInterpretationR6 class here

@@ -1,42 +1,42 @@
-#' Classe R6 pour la visualisation des résultats de clustering de variables
+#' R6 class for visualization of variable clustering results
 #'
-#' Permet de générer des graphiques pour interpréter les partitions et groupes.
+#' Generates plots to interpret partitions and groups.
 #'
 ClusterVisualizationR6 <- R6::R6Class(
     "ClusterVisualizationR6",
     public = list(
-        # Visualisation des clusters (barplot du nombre de variables par cluster)
+        # Visualization of clusters (barplot of number of variables per cluster)
         plot_cluster_sizes = function(clusters) {
             sizes <- as.numeric(sapply(clusters, length))
             if (length(sizes) == 0) {
-                warning("Aucun cluster à afficher.")
+                warning("No clusters to display.")
                 return(invisible(NULL))
             }
             names(sizes) <- paste0("Cluster ", seq_along(sizes))
-            barplot(sizes, main = "Nombre de variables par cluster", xlab = "Cluster", ylab = "Nombre de variables", col = "skyblue")
+            barplot(sizes, main = "Number of variables per cluster", xlab = "Cluster", ylab = "Number of variables", col = "skyblue")
         },
-        # Heatmap des centres des clusters
+        # Heatmap of cluster centers
         plot_centers_heatmap = function(centers) {
             if (!requireNamespace("pheatmap", quietly = TRUE)) {
-                stop("Le package 'pheatmap' est requis pour la heatmap. Installez-le si besoin.")
+                stop("The 'pheatmap' package is required for heatmaps. Please install it if needed.")
             }
-            pheatmap::pheatmap(centers, main = "Centres des clusters de variables")
+            pheatmap::pheatmap(centers, main = "Cluster centers heatmap")
         },
-        # Dendrogramme des corrélations
+        # Correlation dendrogram
         plot_correlation_dendrogram = function(X) {
-            if (!is.data.frame(X) && !is.matrix(X)) stop("X doit être un data.frame ou une matrice.")
-            if (!all(sapply(X, is.numeric))) stop("Toutes les variables doivent être numériques.")
-            if (anyNA(X)) stop("Les données ne doivent pas contenir de NA.")
+            if (!is.data.frame(X) && !is.matrix(X)) stop("X must be a data.frame or matrix.")
+            if (!all(sapply(X, is.numeric))) stop("All variables must be numeric.")
+            if (anyNA(X)) stop("Data must not contain NA.")
 
-            # Calcul de la matrice de corrélation
+            # Compute the correlation matrix
             cor_mat <- cor(X)
             dist_mat <- as.dist(1 - abs(cor_mat))
 
-            # Clustering hiérarchique
+            # Hierarchical clustering
             hc <- hclust(dist_mat, method = "ward.D2")
 
-            # Génération du dendrogramme
-            plot(hc, main = "Dendrogramme des corrélations", xlab = "Variables", sub = "", cex = 0.8)
+            # Generate the dendrogram
+            plot(hc, main = "Correlation dendrogram", xlab = "Variables", sub = "", cex = 0.8)
         }
     )
 )
