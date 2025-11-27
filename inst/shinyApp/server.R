@@ -82,8 +82,8 @@ function(input, output, session) {
         )
     })
 
-    # Load uploaded data
-    observeEvent(input$data_file, {
+    # Helper function to load data (used by multiple observers)
+    load_data_file <- function() {
         req(input$data_file)
 
         tryCatch(
@@ -142,7 +142,38 @@ function(input, output, session) {
                 )
             }
         )
+    }
+
+    # Load uploaded data
+    observeEvent(input$data_file, {
+        load_data_file()
     })
+
+    # Reload data when header option changes
+    observeEvent(input$header,
+        {
+            load_data_file()
+        },
+        ignoreInit = TRUE
+    )
+
+    # Reload data when auto_sep option changes
+    observeEvent(input$auto_sep,
+        {
+            load_data_file()
+        },
+        ignoreInit = TRUE
+    )
+
+    # Reload data when manual separator changes (only if auto_sep is FALSE)
+    observeEvent(input$sep,
+        {
+            if (!is.null(input$auto_sep) && !input$auto_sep) {
+                load_data_file()
+            }
+        },
+        ignoreInit = TRUE
+    )
 
     # =========================================================================
     # UI OUTPUTS - Dynamic elements
