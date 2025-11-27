@@ -1,22 +1,39 @@
 #' R6 class for Hierarchical Agglomerative Clustering (HAC) of variables
 #'
-#' This class wraps the HAC algorithm for variable clustering.
-#' It uses the base R function hclust().
-
+#' @description
+#' This class wraps the HAC algorithm for clustering numeric variables.
+#' It uses the base R function stats::hclust() on a distance matrix computed
+#' between the variables (columns of the input data).
+#'
+#' @export
 HACVariablesR6 <- R6::R6Class(
     "HACVariablesR6",
     public = list(
-        # --- PROPERTIES (Fields) ---
-        k = NULL, # Desired number of clusters (for cutting the tree)
+       # --- PROPERTIES (Fields) ---
+        #' @field k Integer, the desired number of clusters (for cutting the tree).
+        k = NULL, 
+        #' @field method Character string, the distance metric to use: "correlation" (1 - |r|) or "euclidean" (on transposed data).
         method = NULL, # Distance calculation method ("correlation" or "euclidean")
+        #' @field linkage_method Character string, the agglomeration (linkage) method for stats::hclust: e.g., "ward.D2", "complete", "average".
         linkage_method = NULL, # Agglomeration (linkage) method for hclust ("ward.D2", "complete", etc.)
+        #' @field model Stores the hclust object resulting from fit.
         model = NULL, # Stores the hclust object resulting from fit
+        #' @field dist_matrix The distance matrix (stats::dist object) used for hclust.
         dist_matrix = NULL, # Distance matrix used for hclust
+        #' @field clusters Named list where keys are cluster IDs (1 to k) and values are vectors of variable names.
         clusters = NULL, # Named list of variables per cluster
+        #' @field fitted Logical, fit status of the model (TRUE if $fit() has been executed).
         fitted = FALSE, # Fit status of the model
+        #' @field data_fit The transposed, normalized (scaled) data matrix used for fitting (variables as rows, observations as columns).
         data_fit = NULL, # Data (normalized and transposed) used for fitting
 
         # --- CONSTRUCTOR ---
+        #' @description
+        #' Create a new HACVariablesR6 object.
+        #' @param k Integer, the number of clusters to cut the dendrogram into (default: 2).
+        #' @param method Character string, the distance metric to use (default: "correlation").
+        #' @param linkage_method Character string, the agglomeration method for hclust (default: "ward.D2").
+        #' @return A new `HACVariablesR6` object.
         initialize = function(k = 2, method = "correlation", linkage_method = "ward.D2") {
             # Constructor: set initial parameters
             self$k <- k
@@ -25,6 +42,10 @@ HACVariablesR6 <- R6::R6Class(
         },
 
         # --- fit METHOD: Fit the model on X ---
+        #' @description
+        #' Fits the HAC model by calculating the distance matrix between variables and performing hierarchical clustering.
+        #' @param X A data.frame or matrix containing only numeric variables to cluster.
+        #' @return The object itself (invisibly) for method chaining.
         fit = function(X) {
             # 1. Checks and preprocessing
             if (!is.data.frame(X) && !is.matrix(X)) stop("X must be a data.frame or matrix.")
@@ -71,6 +92,10 @@ HACVariablesR6 <- R6::R6Class(
 
         # Predict: attach variables in X (illustrative variables) to the best cluster
         # X must contain the same observations (rows) as the training data, in the same order.
+        #' @description
+        #' Predicts the cluster membership for new, illustrative numeric variables based on their mean absolute correlation to the existing clusters.
+        #' @param X A data.frame or matrix of new numeric variables (must have the same number of observations as the training data).
+        #' @return A data.frame with the variable name, assigned cluster ID, and the maximal average absolute correlation score.
         predict = function(X) {
             if (!self$fitted) stop("Model must be fitted with $fit() before prediction.")
             if (!is.data.frame(X) && !is.matrix(X)) stop("X must be a data.frame or matrix.")
@@ -126,6 +151,10 @@ HACVariablesR6 <- R6::R6Class(
         },
 
         # plot: Draw the hierarchical clustering tree (dendrogram)
+        #' @description
+        #' Plots the dendrogram resulting from the HAC.
+        #' @param k Integer, the number of clusters to highlight on the plot (defaults to the model's k).
+        #' @return The object itself (invisibly), generates a plot
         plot = function(k = self$k) {
             if (!self$fitted) stop("Model must be fitted with $fit() before plotting.")
 
@@ -152,6 +181,9 @@ HACVariablesR6 <- R6::R6Class(
         },
 
         # Print: display concise model information
+        #' @description
+        #' Prints a concise summary of the HAC model parameters and status.
+        #' @return The object itself (invisibly).
         print = function() {
             cat("HACVariablesR6 Model\n")
             cat("--------------------\n")
@@ -170,6 +202,9 @@ HACVariablesR6 <- R6::R6Class(
         },
 
         # Summary: display detailed model information
+        #' @description
+        #' Displays a detailed summary including model parameters, the final cluster composition, and the cophenetic correlation.
+        #' @return The object itself (invisibly).
         summary = function() {
             cat("HACVariablesR6 Summary\n")
             cat("----------------------\n")
