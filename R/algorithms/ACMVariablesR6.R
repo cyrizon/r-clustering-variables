@@ -59,7 +59,7 @@ ClustVarACM <- R6::R6Class(
       self$Q_trace <- c()
       # Input validation
       if (!is.data.frame(self$data)) stop("The input object must be a data.frame.")
-      if (!all(sapply(data, is.factor))) stop("All variables must be categorical (type factor).")
+      if (!all(sapply(self$data, is.factor))) stop("All variables must be categorical (type factor).")
       if (anyNA(self$data)) stop("Data must not contain NA values.")
       if (self$K < 2 || self$K > p) stop("K must be between 2 and the number of variables.")
 
