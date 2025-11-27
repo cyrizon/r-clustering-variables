@@ -50,3 +50,6 @@ rsconnect/
 
 # Mes dossiers personnels non suivis
 CAH/
+
+# pour ne pas inclure les potentiels artefacts des tests
+Rplots.pdf
