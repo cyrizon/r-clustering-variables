@@ -90,7 +90,7 @@ ClustVarKMeans <- R6::R6Class(
       n_vars <- ncol(X_norm)
       var_names <- colnames(X_norm)
 
-      # === 3. CALCUL DE LA MATRICE DE DISTANCE ENTRE VARIABLES ===
+      # === 3. CALCULATION OF THE DISTANCE MATRIX BETWEEN VARIABLES ===
       # Key: we want to group VARIABLES (columns), not observations (rows)
       if (self$method == "correlation") {
         # Distance based on correlation: D(i,j) = 1 - |cor(var_i, var_j)|
