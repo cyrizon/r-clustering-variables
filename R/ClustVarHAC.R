@@ -91,7 +91,6 @@ ClustVarHAC <- R6::R6Class(
         },
 
         # Predict: attach variables in X (illustrative variables) to the best cluster
-        # X must contain the same observations (rows) as the training data, in the same order.
         #' @description
         #' Predicts the cluster membership for new, illustrative numeric variables based on their mean absolute correlation to the existing clusters.
         #' @param newdata A data.frame or matrix of new numeric variables (must have the same number of observations as the training data).
