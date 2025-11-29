@@ -360,7 +360,7 @@ ClustVarACM <- R6::R6Class(
       abline(v = K_opt, col = "red", lty = 2)
       text(K_opt, max(results$Q), labels = paste("K* =", K_opt), pos = 4, col = "red")
 
-      cat(sprintf("→ Optimal K automatically selected: %d (threshold %.0f%%)\n", K_opt, threshold * 100))
+      cat(sprintf("- Optimal K automatically selected: %d (threshold %.0f%%)\n", K_opt, threshold * 100))
       return(invisible(list(results = results, K_opt = K_opt)))
     },
 
