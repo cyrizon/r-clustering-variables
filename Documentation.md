@@ -16,11 +16,11 @@ seed : optional seed for reproducibility
 
 #### Fit 
 ##### Description
-Fit the K-means model on variables.
-Premptively test each the arguments and generates an error message in the apppropriate case  : X must be a data.frame or a matrix, all the variables must be numeric, 
+Fits the K-means model on variables.
+Premptively tests each the arguments and generates an error message in the apppropriate case  : X must be a data.frame or a matrix, all the variables must be numeric, 
 X must not contain missing values and K must be between 2 and the number of variables in X.
-Prepare the data by normalizing, so all variables are comparable.
-Compute the distance matrix between variables, either based on the correlation or the euclidean method (depending on the parameter used).
+Prepares the data by normalizing, so all variables are comparable.
+Computes the distance matrix between variables, either based on the correlation or the euclidean method (depending on the parameter used).
 
 The function uses mutli-starts for stability, with a first center determined randomly.
 The function then uses the LLOYD-MAX algorithm for K-Means for the assignment of the variables to the clusters and their updates, before storing the best results.
@@ -36,7 +36,7 @@ Returns the object itself (invisibly) for method chaining.
 
 #### Predict
 ##### Description
-Predict cluster membership for new variables.
+Predicts cluster membership for new variables.
 Pre-emptively checks that the model as previously been fitted, aand that the new variables respects all the criteria as for the fit() function.
 
 ##### Usage
@@ -51,7 +51,7 @@ Returns : a data.frame with variable names, assigned clusters, and distances
 
 #### Print
 ##### Description
-Print brief model information
+Prints brief model information
 
 ##### Usage
 Model <- ClustVarKMeans.fit(X, K=3, method="correlation",...)
@@ -63,7 +63,7 @@ Returns the clusters and which variables are comprised in them.
 
 #### Summary
 ##### Description
-Print detailed model summary
+Prints detailed model summary
 
 ##### Usage
 Model <- ClustVarKMeans.fit(X, K=3, method="correlation",...)
@@ -93,7 +93,7 @@ Returns a character vector of center variable names
 
 #### elbow_method
 ##### Description
-Automatically determine optimal K using the distance-to-line method
+Automatically determines optimal K using the distance-to-line method
 
 ##### Usage
 ClustVarKMeans.elbow_method(X, K_min, K_max, plot=TRUE)
@@ -216,7 +216,7 @@ tol : numeric, tolerance for stop criterion (Default : 1e-4).
 ### Functions and methods
 #### Fit
 ##### Description
-Fit the clustering model on the active variables.
+Fits the clustering model on the active variables.
 Premptively test each the arguments and generates an error message in the apppropriate case  : X must be a data.frame, all the variables must be categorical(type factor), 
 X must not contain missing values and K must be between 2 and the number of variables in X.
 Clusters are initialized using a balanced round-robin initialization, then shuffle, to reduce the chance of empty clusters at the start.
@@ -236,8 +236,82 @@ X : A data.frame with categorical variables (factors) to cluster.
 Returns the object itself (invisibly) for method chaining.
 
 
-#### Function *details*
+#### Print
 ##### Description
+Prints a succinct summary of the model.
 ##### Usage
-##### Arguments
+Model <- ClustVarACM.fit(X)
+Model.print()
+
 ##### Value
+Returns  : 
+* the number of variables
+* the number of clusters
+* the final criterion Q (the model's inertia)
+
+
+#### Summary
+##### Description
+Displays a detailed summary of the clustering results.
+
+##### Usage
+Model <- ClustVarACM.fit(X)
+Model.summary()
+
+##### Value
+Returns : 
+* the number of variables
+* the number of clusters
+* the final criterion Q (the model's inertia)
+* the average quality of the clustering (=Q/p, where p=number of variables)
+* the number of iterations actualy performed by the algorithm
+* a data frame representing each variable and the cluster to which it has benn allocated
+* a synthesis of the number of variables per cluster
+
+
+#### Plot
+##### Description
+Plots the variables in the space of the cluster axes (Factorial Map).
+This is a conceptual representation, visualizing the association between variables and cluster synthetic axes, using the association scores as coordinates.
+
+##### Usage
+Model <- ClustVarACM.fit(X)
+Model.plot(axes = 1:2)
+
+##### Arguments
+axes : Numeric vector of length 2, specifying the cluster axes to plot,  with two distinct integers between 1 and K (Default : axes=c(1,2)).
+
+##### Value
+Generates a plot.
+
+#### Select_K
+##### Description
+Automatic selection for the optimal number of clusters K using the elbow method on the Q criterion.
+
+##### Usage
+ClustVarACM.select_K(X, K_grid = 2:6, threshold=0.1)
+
+##### Arguments
+X : A data.frame with categorical variables (factors) to cluster.
+K_grid : Integer vector of K values to test (e.g., 2:6).
+threshold : Numeric, tolerance for the relative gain in Q (default 0.1, or 10%).
+
+##### Value
+Returns a list containing the data.frame of the results (K and Q values) and the suggested optimal K, with a plot visualizing Q convergence.
+
+
+#### Predict
+##### Description
+Predicts cluster membership for new illustrative variables.
+The new variables are not used to modify the clusters (non-active).
+
+##### Usage
+Model <- ClustVarACM.fit(X, K)
+model.predict(newdata)
+
+##### Arguments
+newdata : A data.frame with categorical variables to classify. It must have the same number of observations as the training data used with the fit() function.
+
+##### Value
+Returns A data.frame with variable names and their assigned cluster.
+
