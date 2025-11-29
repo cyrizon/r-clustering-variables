@@ -202,12 +202,40 @@ Returns :
 * the list of variables in each cluster
 
 
-## ClustVarACM *details*
+## ClustVarACM *Clustering for categorical variables using MCA*
 
 ### Description
-### Parameters
+This R6 class implements the iterative algorithm for clustering categorical variables using MCA (Multiple Correspondence Analysis) as a method to define the cluster's synthetic axis. It aims to maximize the association (measured by Khi-squared) between each variable and its cluster's axis.
 
+### Parameters
+K : integer, number of clusters (Default : K= 3).
+max_iter : integer, maximal number of iterations for the clustering algorithm (Default : 30).
+tol : numeric, tolerance for stop criterion (Default : 1e-4).
+
+    
 ### Functions and methods
+#### Fit
+##### Description
+Fit the clustering model on the active variables.
+Premptively test each the arguments and generates an error message in the apppropriate case  : X must be a data.frame, all the variables must be categorical(type factor), 
+X must not contain missing values and K must be between 2 and the number of variables in X.
+Clusters are initialized using a balanced round-robin initialization, then shuffle, to reduce the chance of empty clusters at the start.
+The axis of each cluster is calculated thanks to the synthetic variable of each cluster.
+For clusters with multiple variables: the function uses the first principal component (FPC) from FactoMineR::MCA.
+Then the algorithm reallocates each variable through Khi² test score calculation and assigning each variable to the cluster with the maximum association score.
+
+The algorithm determines a criterion Q which constitutes the sum of the maximum association scores. It indicates the inertia of th model and therefore, intra-cluster quality.
+
+##### Usage
+ClustVarACM.fit(X)
+
+##### Arguments
+X : A data.frame with categorical variables (factors) to cluster.
+
+##### Value
+Returns the object itself (invisibly) for method chaining.
+
+
 #### Function *details*
 ##### Description
 ##### Usage
