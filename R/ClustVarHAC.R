@@ -149,34 +149,209 @@ ClustVarHAC <- R6::R6Class(
             return(cluster_pred)
         },
 
-        # plot: Draw the hierarchical clustering tree (dendrogram)
         #' @description
-        #' Plots the dendrogram resulting from the HAC.
-        #' @param K Integer, the number of clusters to highlight on the plot (defaults to the model's K).
-        #' @return The object itself (invisibly), generates a plot
-        plot = function(K = self$K) {
-            if (!self$fitted) stop("Model must be fitted with $fit() before plotting.")
+        #' Plot visualizations for the HAC model.
+        #' @param type Type of plot: "dendrogram" (default), "heights", "heatmap", or "representativeness".
+        #' @param ... Additional arguments passed to specific plot functions.
+        #' @return A ggplot2 object.
+        plot = function(type = c("dendrogram", "heights", "heatmap", "representativeness"), ...) {
+          # Validation
+          if (!self$fitted) stop("Model must be fitted with $fit() before plotting.")
+          type <- match.arg(type)
 
-            # The horiz=TRUE argument is passed directly to plot.hclust
-            # R may produce warnings when other parameters (like xlab, ylab)
-            # are used simultaneously because they are handled differently.
+          # --- 1. DENDROGRAM (Style "S3" amélioré) ---
+          if (type == "dendrogram") {
+            if (!requireNamespace("ggdendro", quietly = TRUE)) stop("Package 'ggdendro' is required.")
 
-            # For horizontal rendering: use the standard plot.hclust parameter
-            # Note: simplify labels to reduce the risk of plotting parameter warnings.
+            # Conversion en dendrogramme pour ggdendro
+            dend <- as.dendrogram(self$model)
+            dend_data <- ggdendro::dendro_data(dend, type = "rectangle")
 
-            plot(self$model,
-                main = paste("HAC of Variables (Linkage:", self$linkage_method, ")"),
-                xlab = "Distance",
-                ylab = "Variables",
-                sub = "",
-                horiz = TRUE
-            )
+            # Calcul précis de la hauteur de coupure
+            # hclust$height contient les hauteurs triées.
+            # Pour K clusters, la coupure est entre la fusion N-K et N-K+1
+            n_vars <- length(self$model$labels)
+            h <- self$model$height
 
-            # Fix for namespace issue (use stats::)
-            if (K > 1 && K < length(self$model$labels)) {
-                stats::rect.hclust(self$model, k = K, border = 2:(K + 1))
+            # Si K=2, on coupe entre l'avant-dernière et la dernière fusion
+            # Index de la fusion qui crée K clusters :
+            idx_cut <- n_vars - self$K
+
+            if (self$K == 1) {
+              cut_val <- max(h) * 1.05
+            } else if (self$K == n_vars) {
+              cut_val <- min(h) / 2
+            } else {
+              # Moyenne entre la hauteur où on a K clusters et celle où on passe à K-1
+              cut_val <- (h[idx_cut] + h[idx_cut + 1]) / 2
             }
-            invisible(self)
+
+            # Construction du plot
+            p <- ggplot2::ggplot(ggdendro::segment(dend_data)) +
+              ggplot2::geom_segment(ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
+                                    linewidth = 0.6, color = "gray30") + # linewidth au lieu de size
+              ggplot2::geom_text(data = ggdendro::label(dend_data),
+                                 ggplot2::aes(x = x, y = y, label = label),
+                                 hjust = 1, nudge_y = -0.01, size = 3.5) +
+              # Ligne de coupure
+              ggplot2::geom_hline(yintercept = cut_val,
+                                  color = "#E41A1C", linetype = "dashed", linewidth = 0.8) +
+              # Labels et Thème
+              ggplot2::labs(title = "Hierarchical Clustering Dendrogram",
+                            subtitle = paste("Linkage:", self$linkage_method, "| Distance:", self$method,
+                                             "\nRed line indicates cut for K =", self$K),
+                            x = NULL, y = "Height") +
+              ggplot2::theme_minimal() +
+              ggplot2::theme(
+                panel.grid.major.y = ggplot2::element_blank(),
+                panel.grid.minor.y = ggplot2::element_blank(),
+                axis.text.y = ggplot2::element_blank(), # On cache les indices numériques Y
+                axis.ticks.y = ggplot2::element_blank(),
+                plot.title = ggplot2::element_text(face = "bold", size = 12),
+                plot.subtitle = ggplot2::element_text(color = "gray50", size = 10)
+              ) +
+              # Orientation horizontale (plus lisible pour les noms)
+              ggplot2::coord_flip() +
+              ggplot2::scale_y_reverse(expand = ggplot2::expansion(mult = c(0.15, 0.05)))
+
+            print(p)
+            return(invisible(p))
+
+            # --- 2. HEIGHTS (Scree Plot) ---
+          } else if (type == "heights") {
+            h <- self$model$height
+            n <- length(h)
+            n_show <- min(20, n)
+            last_heights <- rev(tail(h, n_show))
+
+            df_h <- data.frame(k = 2:(n_show + 1), height = last_heights)
+
+            p <- ggplot2::ggplot(df_h, ggplot2::aes(x = k, y = height)) +
+              ggplot2::geom_line(color = "steelblue", linewidth = 1) +
+              ggplot2::geom_point(size = 3, color = "steelblue") +
+              ggplot2::geom_vline(xintercept = self$K, color = "#E41A1C", linetype = "dashed", linewidth = 0.8) +
+              ggplot2::geom_text(ggplot2::aes(label = round(height, 2)), vjust = -0.8, size = 3) +
+              ggplot2::labs(title = "Cluster Fusion Heights (Inertia Gain)",
+                            subtitle = "Look for the 'elbow' to choose K",
+                            x = "Number of Clusters (K)",
+                            y = "Fusion Height") +
+              ggplot2::scale_x_continuous(breaks = df_h$k) +
+              ggplot2::theme_minimal()
+
+            print(p)
+            return(invisible(p))
+
+            # --- 3. HEATMAP (Code Heatmap Pro) ---
+          } else if (type == "heatmap") {
+            if (is.null(self$clusters)) stop("No clusters found.")
+
+            # Récupération des clusters et tri
+            var_names <- rownames(self$data)
+            cluster_vec <- setNames(rep(NA, length(var_names)), var_names)
+            for (k_idx in seq_along(self$clusters)) {
+              cluster_vec[self$clusters[[k_idx]]] <- k_idx
+            }
+
+            ordered_vars <- names(sort(cluster_vec))
+            X_ordered <- t(self$data[ordered_vars, , drop = FALSE])
+            cor_mat <- cor(X_ordered)
+
+            cor_df <- reshape2::melt(cor_mat)
+            colnames(cor_df) <- c("Var1", "Var2", "Correlation")
+            cor_df$Var1 <- factor(cor_df$Var1, levels = ordered_vars)
+            cor_df$Var2 <- factor(cor_df$Var2, levels = rev(ordered_vars))
+
+            p <- ggplot2::ggplot(cor_df, ggplot2::aes(x = Var1, y = Var2, fill = Correlation)) +
+              ggplot2::geom_tile(color = "white", linewidth = 0.2) +
+              ggplot2::scale_fill_distiller(palette = "RdBu", direction = -1, limit = c(-1, 1), name = "Corr") +
+              ggplot2::labs(title = "Correlation Heatmap", x = NULL, y = NULL) +
+              ggplot2::theme_minimal() +
+              ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                             panel.grid = ggplot2::element_blank()) +
+              ggplot2::coord_fixed()
+
+            print(p)
+            return(invisible(p))
+
+          # --- 4. REPRESENTATIVENESS (Adapté du K-Means) ---
+          } else if (type == "representativeness") {
+
+            # En CAH, les variables sont en LIGNES dans self$data
+            # On doit calculer un "centroïde" (profil moyen) pour chaque cluster
+
+            repr_list <- list()
+
+            for (k_idx in seq_along(self$clusters)) {
+              vars_in_k <- self$clusters[[k_idx]]
+              if (length(vars_in_k) == 0) next
+
+              # Extraction des données du cluster (Vars x Obs)
+              sub_data <- self$data[vars_in_k, , drop = FALSE]
+
+              # Calcul du Centroïde (Moyenne des variables du cluster)
+              # Si une seule variable, c'est elle-même le centre
+              if (length(vars_in_k) == 1) {
+                centroid <- sub_data[1, ]
+              } else {
+                centroid <- colMeans(sub_data)
+              }
+
+              # --- CAS 1 : CORRELATION ---
+              if (self$method == "correlation") {
+                # On calcule la corrélation de chaque variable avec le profil moyen (centroïde)
+                # cor(x, y) calcule la corrélation linéaire
+                # On transpose sub_data pour avoir (Obs x Vars) pour la fonction cor
+                corrs <- as.vector(abs(cor(t(sub_data), centroid)))
+
+                df_k <- data.frame(
+                  variable = vars_in_k,
+                  cluster = as.factor(k_idx),
+                  representativeness = corrs,
+                  stringsAsFactors = FALSE
+                )
+
+                # --- CAS 2 : EUCLIDIENNE ---
+              } else {
+                # Calcul de la distance euclidienne au centroïde
+                dists <- apply(sub_data, 1, function(x) sqrt(sum((x - centroid)^2)))
+                max_dist <- max(dists)
+
+                # Normalisation : 1 = au centre (dist 0), 0 = le plus loin
+                repr_val <- if (max_dist > 0) {
+                  1 - (dists / max_dist)
+                } else {
+                  rep(1, length(dists))
+                }
+
+                df_k <- data.frame(
+                  variable = vars_in_k,
+                  cluster = as.factor(k_idx),
+                  representativeness = repr_val,
+                  stringsAsFactors = FALSE
+                )
+              }
+              repr_list[[k_idx]] <- df_k
+            }
+
+            repr_df <- do.call(rbind, repr_list)
+
+            # Plot (Style identique au K-Means : barres horizontales triées)
+            p <- ggplot2::ggplot(repr_df, ggplot2::aes(x = reorder(variable, representativeness),
+                                                       y = representativeness, fill = cluster)) +
+              ggplot2::geom_col() + # Barres standard (plus fines que le pavé précédent)
+              ggplot2::coord_flip() +
+              ggplot2::labs(title = "Variable Representativeness",
+                            subtitle = "Similarity to cluster centroid (higher = more representative)",
+                            x = "Variable",
+                            y = if (self$method == "correlation") "Absolute Correlation w/ Centroid" else "Normalized Similarity") +
+              ggplot2::theme_minimal() +
+              ggplot2::theme(axis.text.y = ggplot2::element_text(size = 9)) +
+              # ncol = 1 pour empiler les clusters comme dans ton exemple K-Means
+              ggplot2::facet_wrap(~cluster, scales = "free_y", ncol = 1)
+
+            print(p)
+            return(invisible(p))
+          }
         },
 
         # Print: display concise model information
