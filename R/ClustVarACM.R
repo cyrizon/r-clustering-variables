@@ -319,10 +319,12 @@ ClustVarACM <- R6::R6Class(
 
     #' @description
     #' Automatic selection for the optimal number of clusters K using the elbow method on the Q criterion.
+    #' @param X A data.frame with categorical variables (factors) to cluster
     #' @param K_grid Integer vector of K values to test (e.g., 2:6).
     #' @param threshold Numeric tolerance for the relative gain in Q (default 0.1, or 10%).
     #' @return A list containing the results (K and Q values) and the suggested optimal K.
-    select_K = function(K_grid = 2:6, threshold = 0.1) {
+    select_K = function(X = self$data, K_grid = 2:6, threshold = 0.1) {
+      self$data <- X # Use X if provided, otherwise use self$data
       if (is.null(self$data)) stop("Data must be provided to select K.")
       if (min(K_grid) < 2 || max(K_grid) > ncol(self$data)) stop("K_grid must be within [2, number of variables].")
 
