@@ -55,7 +55,7 @@ ClustVarHAC <- R6::R6Class(
             # 2. Preprocessing: normalization (center and scale)
             X_norm <- scale(X)
 
-            # 3. Calculer la Matrice de Distance entre les VARIABLES
+            # 3. Computing distance matrix between variables
             if (self$method == "correlation") {
                 # Distance based on absolute correlation (1 - |r|)
                 dist_mat <- stats::as.dist(1 - abs(stats::cor(X_norm)))
