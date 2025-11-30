@@ -44,7 +44,8 @@ Imports:
   FactoMineR,
   pheatmap,
   arrow,
-  tzdb
+  tzdb,
+  ggdendro
 Suggests:
   cluster,
   testthat,
