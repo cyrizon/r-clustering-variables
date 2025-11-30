@@ -136,7 +136,7 @@ ClustVarKMeans <- R6::R6Class(
 
         current_centers_idx <- initial_centers_idx
 
-        # === 5. ALGORITHME K-MEANS (LLOYD) ===
+        # === 5. ALGORITHM K-MEANS (LLOYD) ===
         converged <- FALSE
         iter <- 0
         cluster_assignment <- rep(0, n_vars)
@@ -559,9 +559,22 @@ ClustVarKMeans <- R6::R6Class(
       return(K_optimal)
     },
 
-    # ============================================================================
-    # MÉTHODE plot() CORRIGÉE pour ClustVarKMeans
-    # ============================================================================
+    
+    #' @description
+    # plot: Draw the clustering results (heatmap or representativeness)
+    #' Generates visual representations of the clustering results using \code{ggplot2}.
+    #'
+    #' @details
+    #' This function requires the \code{ggplot2} and \code{reshape2} packages to be installed
+    #' for the \code{"heatmap"} and \code{"representativeness"} plots.
+    #'
+    #' @param type Character string indicating the type of plot to generate:
+    #'   \itemize{
+    #'     \item \code{"heatmap"}: Displays a correlation matrix heatmap with variables ordered by cluster. This is useful for visually confirming intra-cluster cohesion and inter-cluster separation. 
+    #'     \item \code{"representativeness"}: Displays a bar chart showing each variable's similarity (absolute correlation or normalized similarity) to its assigned cluster center (\code{self$centers}). This helps identify the core variables within each cluster. 
+    #'   }
+    #' @param ... Additional arguments (currently unused).
+    #' @return The object itself (invisibly).
 
     plot = function(type = c("heatmap", "representativeness"), ...) {
       type <- match.arg(type)
