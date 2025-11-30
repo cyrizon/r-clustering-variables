@@ -1,7 +1,7 @@
 Package: clustVarACC
 Type: Package
 Title: Variable Clustering with R6 Classes and Shiny Demonstration
-Version: 0.1.0
+Version: 1.0.0
 Authors@R: c(
     person(
       given = "Anne-Camille", 
