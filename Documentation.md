@@ -26,7 +26,8 @@ The function uses mutli-starts for stability, with a first center determined ran
 The function then uses the LLOYD-MAX algorithm for K-Means for the assignment of the variables to the clusters and their updates, before storing the best results.
 
 ##### Usage
-ClustVarKMeans$fit(X, K=3, method="correlation",...)
+model <- ClustVarKMeans$new(K = 3, method = "correlation")
+model$fit(X)
 
 ##### Arguments
 X : A data.frame or matrix with numeric variables to cluster.
@@ -40,7 +41,8 @@ Predicts cluster membership for new variables.
 Pre-emptively checks that the model as previously been fitted, aand that the new variables respects all the criteria as for the fit() function.
 
 ##### Usage
-ClustVarKMeans$predict(newdata, scaling="...")
+model <- ClustVarKMeans$new(K = 3, method = "correlation")
+model$predict(newdata, scaling="...")
 
 ##### Arguments
 newdata : A data.frame or matrix with numeric variables to classify (observations as rows)
@@ -54,8 +56,8 @@ Returns : a data.frame with variable names, assigned clusters, and distances
 Prints brief model information
 
 ##### Usage
-Model <- ClustVarKMeans$fit(X, K=3, method="correlation",...)
-Model$print()
+model <- ClustVarKMeans$new(K = 3, method = "correlation")
+print(model)
 
 ##### Value
 Returns the clusters and which variables are comprised in them.
@@ -67,7 +69,7 @@ Prints detailed model summary
 
 ##### Usage
 Model <- ClustVarKMeans$fit(X, K=3, method="correlation",...)
-Model$summary()
+summary(Model)
 
 ##### Value
 Presents :
@@ -197,7 +199,7 @@ Generates a gg2plot, depending on the chosen "type" :
 Prints a concise summary of the HAC model parameters and status.
 ##### Usage
 Model <- ClustVarHAC$fit(X)
-Model$print()
+print(Model)
 
 ##### Value
 Returns  : 
@@ -214,7 +216,7 @@ Displays a detailed summary including model parameters, the final cluster compos
 
 ##### Usage
 Model <- ClustVarHAC$fit(X)
-Model$summary()
+summary(Model)
 
 ##### Value
 Returns :
@@ -265,7 +267,7 @@ Returns the object itself (invisibly) for method chaining.
 Prints a succinct summary of the model.
 ##### Usage
 Model <- ClustVarACM$fit(X)
-Model$print()
+print(Model)
 
 ##### Value
 Returns  : 
@@ -280,7 +282,7 @@ Displays a detailed summary of the clustering results.
 
 ##### Usage
 Model <- ClustVarACM$fit(X)
-Model$summary()
+summaru(Model)
 
 ##### Value
 Returns : 
