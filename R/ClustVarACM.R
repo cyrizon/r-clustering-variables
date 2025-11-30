@@ -405,21 +405,26 @@ ClustVarACM <- R6::R6Class(
 
     #' @description
     #' Plot visualizations for the ACM clustering model.
-    #' @param type Type of plot: "biplot", "representativeness" or "heatmap".
-    #' @param axes Numeric vector of length 2, specifying the cluster axes to plot (for biplot).
-    #' @param ... Additional arguments passed to specific plot functions.
-    #' @return A ggplot2 object.
+    #' @param type Character string indicating the type of plot to generate. Must be one of:
+        #'   \itemize{
+        #'     \item \code{"biplot"}: A scatter plot projecting variables onto two specified cluster axes, visualizing their associations (e.g., to Cluster 1 vs Cluster 2). Requires \code{ggrepel}. 
+        #'     \item \code{"representativeness"}: A bar chart showing the association strength (Cramer's V or Score) of each variable to its \strong{assigned} cluster. Useful for identifying core variables.
+        #'     \item \code{"heatmap"}: A matrix plot visualizing the association strength between \strong{all} variables and \strong{all} clusters. Variables are typically ordered by their cluster group.
+        #'   }
+        #' @param axes Numeric vector of length 2, specifying the cluster axes to plot (e.g., \code{c(1, 2)} for the first two cluster dimensions in the biplot).
+        #' @param ... Additional arguments passed to specific plot functions (currently unused).
+        #' @return The generated \code{ggplot2} object (invisibly).
     plot = function(type = c("biplot", "representativeness", "heatmap"), axes = c(1, 2), ...) {
       if (is.null(self$score_matrix)) stop("Model must be fitted with $fit() before plotting.")
       type <- match.arg(type)
 
-      # --- CHOIX DE LA MÉTRIQUE (Unifier la logique pour tous les graphiques) ---
-      # Si la matrice de Cramér a été calculée (dans fit), on l'utilise pour la visualisation
-      # car elle offre plus de nuances (Intensité) que le score Chi2 (Significativité).
+      # --- CHOICE OF METRICS ---
+      # If Cramer's matrix has been computed (in fit()) it will be used for visualization 
+      # since it allows more nuances than Khi^2 test score (Intensity vs Significativity)
       if (!is.null(self$cramer_matrix)) {
         data_matrix <- self$cramer_matrix
         metric_label <- "Cramer's V (Association Strength)"
-        # Les axes du biplot doivent être entre 0 et 1 (Cramér max est 1)
+        # Biplot axes must be between 0 and 1 since Cramer's V max value is 1 
         axis_limits <- c(-0.05, 1.05)
       } else {
         data_matrix <- self$score_matrix
@@ -431,7 +436,7 @@ ClustVarACM <- R6::R6Class(
       if (type == "biplot") {
         if (self$K < 2) stop("Biplot requires at least 2 clusters.")
 
-        # Vérif package ggrepel pour éviter le chevauchement
+        # Checking ggrepel package to avoid overlapping 
         if (!requireNamespace("ggrepel", quietly = TRUE)) stop("Package 'ggrepel' is required.")
 
         df_plot <- data.frame(
@@ -466,7 +471,7 @@ ClustVarACM <- R6::R6Class(
         # --- 2. REPRESENTATIVENESS ---
       } else if (type == "representativeness") {
 
-        # On récupère la valeur MAX de la métrique choisie pour chaque variable
+        # Getting back MAX value for the chosen metrics for each variable.
         vars <- names(self$clusters)
         vals <- numeric(length(vars))
 
@@ -503,11 +508,11 @@ ClustVarACM <- R6::R6Class(
         # --- 3. HEATMAP ---
       } else if (type == "heatmap") {
 
-        # Transformation pour ggplot
+        # Transformation for ggplot
         df_heat <- reshape2::melt(data_matrix)
         colnames(df_heat) <- c("Variable", "Cluster", "Value")
 
-        # Tri des variables
+        # Sorting variables
         if (!is.null(self$clusters)) {
           ord <- order(self$clusters)
           vars_ordered <- names(self$clusters)[ord]
