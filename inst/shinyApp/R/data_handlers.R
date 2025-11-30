@@ -27,8 +27,9 @@ load_example_data <- function(data_path = NULL) {
   # Try multiple locations for the example data
   if (is.null(data_path)) {
     possible_paths <- c(
-      "../../tests/datasets/College_Data", # Dev mode from inst/shinyApp
-      system.file("tests/datasets/College_Data", package = "clustVarACC"), # Installed package
+      "../extdata/College_Data", # Dev mode from inst/shinyApp
+      system.file("extdata/College_Data", package = "clustVarACC"), # Installed package
+      "../../tests/datasets/College_Data", # Legacy dev location (fallback)
       "College_Data" # Current directory fallback
     )
 

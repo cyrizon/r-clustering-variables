@@ -104,7 +104,11 @@ if (is_installed) {
             message(paste("✗ alg_helpers.R not found:", e$message))
         }
     )
-} # Load Shiny app helper modules (always from app directory)
+}
+
+# =============================================================================
+# Load Shiny app helper modules (ALWAYS - both installed and dev mode)
+# =============================================================================
 message("\nLoading Shiny app modules...")
 source("R/data_handlers.R")
 source("R/clustering_logic.R")

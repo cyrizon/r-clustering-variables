@@ -3,3 +3,4 @@
 export(ClustVarACM)
 export(ClustVarHAC)
 export(ClustVarKMeans)
+export(create_model)

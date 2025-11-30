@@ -1,4 +1,12 @@
 ## Helper functions for algorithm instantiation
+#' Create clustering model instance
+#'
+#' Factory function to create instances of clustering algorithms
+#'
+#' @param algorithm Character Algorithm name ("kmeans", "hac", "acm")
+#' @param params List of algorithm-specific parameters
+#' @return An R6 object instance of the specified clustering algorithm
+#' @export
 create_model <- function(algorithm = "kmeans", params = list()) {
   alg <- if (is.null(algorithm)) "kmeans" else algorithm
   method <- if (!is.null(params$method)) params$method else NULL
