@@ -275,11 +275,19 @@ library(clustVarACC)
 shiny::runApp(system.file("shinyApp", package = "clustVarACC"))
 ```
 
-**Note**: If running from source (development), you can also launch from the project directory:
+**Note**: When running from source (development mode), use the package root directory:
 
 ```{r shiny-dev, eval=FALSE}
-# From project root directory
-shiny::runApp("inst/shinyApp")
+# Development mode - ensure you're in the project root directory
+# Find package root (works from any subdirectory)
+pkg_root <- rprojroot::find_package_root_file()
+devtools::load_all(pkg_root) # Load package functions
+shiny::runApp(file.path(pkg_root, "inst/shinyApp"))
+
+# Alternative if rprojroot is not installed:
+# setwd("..") if you're in vignettes/, then:
+# devtools::load_all()
+# shiny::runApp("inst/shinyApp")
 ```
 
 The Shiny app provides:
