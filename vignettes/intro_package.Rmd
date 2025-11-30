@@ -1,5 +1,383 @@
 ---
-title: "intro_package"
-output: html_document
+title: "Introduction to clustVarACC: Variable Clustering with R6 Classes"
+author: "Cyrille PECNIK, Constantin REY-COQUAIS, Anne-Camille VIAL"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to clustVarACC}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>",
+    fig.width = 7,
+    fig.height = 5
+)
+```
+
+## Overview
+
+The **clustVarACC** package provides three R6-based algorithms for clustering variables (rather than observations). Variable clustering is useful for:
+
+- **Reducing multicollinearity** in regression models
+- **Feature engineering**: creating representative variables for each group
+- **Exploratory data analysis**: understanding variable relationships and structure
+- **Dimension reduction**: grouping redundant variables together
+
+The package includes:
+
+1. **ClustVarKMeans**: K-means clustering for numeric variables
+2. **ClustVarHAC**: Hierarchical Agglomerative Clustering for numeric variables
+3. **ClustVarACM**: Multiple Correspondence Analysis clustering for categorical variables
+
+Each class provides a unified interface with `fit()`, `predict()`, and `plot()` methods.
+
+## Installation
+
+```{r eval=FALSE}
+# Install from GitHub
+if (!requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+}
+
+remotes::install_github("cyrizon/r-clustering-variables")
+```
+
+```{r}
+library(clustVarACC)
+```
+
+## Example 1: K-Means Variable Clustering
+
+### Basic Usage
+
+Let's cluster numeric variables from the built-in `mtcars` dataset:
+
+```{r kmeans-basic}
+# Select numeric variables
+data(mtcars)
+X <- mtcars[, c("mpg", "disp", "hp", "drat", "wt", "qsec")]
+
+# Create and fit K-means model with 3 clusters
+model_km <- ClustVarKMeans$new(K = 3, method = "correlation")
+model_km$fit(X)
+
+# View results
+print(model_km)
+```
+
+### Cluster Composition
+
+```{r kmeans-clusters}
+# Access cluster assignments
+model_km$clusters
+```
+
+### Automatic K Selection
+
+The package includes an elbow method to automatically select the optimal number of clusters:
+
+```{r kmeans-auto-k, eval=FALSE}
+# Auto-detect optimal k using elbow method
+model_km_auto <- ClustVarKMeans$new(K = 2, method = "correlation")
+optimal_k <- model_km_auto$elbow_method(X, K_min = 2, K_max = 8, plot = TRUE)
+
+cat("Optimal K:", optimal_k, "\n")
+
+# Fit with optimal k
+model_km_auto$K <- optimal_k
+model_km_auto$fit(X)
+```
+
+### Visualizations
+
+```{r kmeans-plots, fig.width=7, fig.height=5}
+# Correlation heatmap ordered by clusters
+model_km$plot(type = "heatmap")
+
+# Variable representativeness (similarity to cluster center)
+model_km$plot(type = "representativeness")
+```
+
+### Prediction on New Variables
+
+```{r kmeans-predict}
+# Create illustrative variables (combinations of existing ones)
+new_vars <- data.frame(
+    power_weight_ratio = mtcars$hp / mtcars$wt,
+    efficiency = mtcars$mpg * mtcars$drat
+)
+
+# Predict cluster membership
+predictions <- model_km$predict(new_vars)
+print(predictions)
+```
+
+## Example 2: Hierarchical Clustering (HAC)
+
+HAC is useful when you want to visualize the hierarchical structure of variable relationships.
+
+### Basic Usage
+
+```{r hac-basic}
+# Create and fit HAC model
+model_hac <- ClustVarHAC$new(K = 3, method = "correlation", linkage_method = "ward.D2")
+model_hac$fit(X)
+
+print(model_hac)
+```
+
+### Dendrogram Visualization
+
+```{r hac-dendrogram, fig.width=7, fig.height=5}
+# Plot dendrogram with cut line
+model_hac$plot(type = "dendrogram")
+```
+
+### Choosing the Number of Clusters
+
+```{r hac-heights, fig.width=7, fig.height=5}
+# Plot fusion heights to identify "elbow"
+model_hac$plot(type = "heights")
+```
+
+### Additional Visualizations
+
+```{r hac-other-plots, fig.width=7, fig.height=5}
+# Heatmap
+model_hac$plot(type = "heatmap")
+
+# Representativeness
+model_hac$plot(type = "representativeness")
+```
+
+## Example 3: ACM Clustering for Categorical Variables
+
+For categorical variables, we use Multiple Correspondence Analysis (MCA) to define cluster axes.
+
+### Basic Usage
+
+```{r acm-basic}
+# Load a dataset with categorical variables
+data(HairEyeColor)
+hair_eye <- as.data.frame(HairEyeColor)
+
+# Expand the contingency table to individual observations
+hair_eye_expanded <- hair_eye[rep(seq_len(nrow(hair_eye)), hair_eye$Freq), c("Hair", "Eye", "Sex")]
+rownames(hair_eye_expanded) <- NULL
+
+# Ensure all variables are factors
+hair_eye_expanded[] <- lapply(hair_eye_expanded, as.factor)
+
+# Create and fit ACM model
+model_acm <- ClustVarACM$new(K = 2, max_iter = 30)
+model_acm$fit(hair_eye_expanded)
+
+print(model_acm)
+```
+
+### Cluster Results
+
+```{r acm-clusters}
+# View cluster assignments
+model_acm$clusters
+
+# View final quality criterion (sum of chi-squared associations)
+model_acm$Q_final
+```
+
+### Visualizations
+
+```{r acm-plots, fig.width=7, fig.height=5}
+# MCA biplot showing variables and clusters
+model_acm$plot(type = "biplot")
+
+# Association heatmap (Cramér's V)
+model_acm$plot(type = "heatmap")
+
+# Variable representativeness
+model_acm$plot(type = "representativeness")
+```
+
+### Convergence Tracking
+
+```{r acm-convergence}
+# Check convergence trace
+plot(model_acm$Q_trace,
+    type = "b",
+    xlab = "Iteration", ylab = "Q Criterion",
+    main = "ACM Convergence", pch = 19, col = "steelblue"
+)
+```
+
+## Comparing Distance Methods
+
+For numeric variables, you can choose between correlation and Euclidean distance:
+
+```{r compare-methods, fig.width=7, fig.height=10}
+# Correlation-based (captures linear relationships)
+model_cor <- ClustVarKMeans$new(K = 3, method = "correlation")
+model_cor$fit(X)
+
+# Euclidean-based (captures scale and magnitude)
+model_euc <- ClustVarKMeans$new(K = 3, method = "euclidean")
+model_euc$fit(X)
+
+# Compare cluster compositions
+cat("Correlation method:\n")
+print(model_cor$clusters)
+
+cat("\nEuclidean method:\n")
+print(model_euc$clusters)
+```
+
+## Method Chaining
+
+All models support method chaining for concise code:
+
+```{r method-chaining, eval=FALSE}
+# Chain initialization, fitting, and plotting
+ClustVarKMeans$new(K = 3, method = "correlation")$
+    fit(X)$
+    plot(type = "heatmap")
+```
+
+## Exporting Results
+
+Extract cluster assignments for further analysis:
+
+```{r export}
+# Convert to data.frame
+results_df <- data.frame(
+    variable = unlist(model_km$clusters),
+    cluster = rep(
+        seq_along(model_km$clusters),
+        sapply(model_km$clusters, length)
+    )
+)
+
+print(results_df)
+
+# Export to CSV
+# write.csv(results_df, "cluster_results.csv", row.names = FALSE)
+```
+
+## Shiny Application
+
+The package includes an interactive Shiny application for exploratory analysis without coding:
+
+```{r shiny, eval=FALSE}
+# Launch the Shiny app from installed package
+library(clustVarACC)
+shiny::runApp(system.file("shinyApp", package = "clustVarACC"))
+```
+
+**Note**: If running from source (development), you can also launch from the project directory:
+
+```{r shiny-dev, eval=FALSE}
+# From project root directory
+shiny::runApp("inst/shinyApp")
+```
+
+The Shiny app provides:
+
+- Data upload and preview
+- Interactive algorithm selection (K-Means, HAC, ACM)
+- Parameter tuning (K, distance method, linkage)
+- Automatic K detection
+- Multiple visualization types
+- Results export (CSV, PNG)
+- Prediction on new variables
+
+## Best Practices
+
+### Choosing an Algorithm
+
+- **K-Means (ClustVarKMeans)**: Fast, good for large datasets, requires specifying K
+- **HAC (ClustVarHAC)**: Hierarchical structure, visual K selection via dendrogram
+- **ACM (ClustVarACM)**: For categorical variables only
+
+### Choosing Distance Method
+
+- **Correlation**: Focus on linear relationships (ignores scale)
+- **Euclidean**: Considers both magnitude and direction (scale-sensitive)
+
+### Preprocessing
+
+- **Numeric data**: Automatically scaled within each algorithm
+- **Categorical data**: Must be factors for ACM
+- **Missing values**: Not allowed - impute or remove beforehand
+
+### Interpreting Results
+
+1. **Cluster sizes**: Check for balanced vs. unbalanced clusters
+2. **Representativeness plot**: Identify most representative variables per cluster
+3. **Heatmap**: Verify intra-cluster cohesion (high correlation/association within clusters)
+4. **Prediction**: Validate cluster structure by predicting new variable assignments
+
+## Advanced: Custom Linkage Methods (HAC)
+
+```{r hac-linkage, eval=FALSE}
+# Try different linkage methods
+linkages <- c("ward.D2", "complete", "average", "single")
+
+for (link in linkages) {
+    model <- ClustVarHAC$new(K = 3, method = "correlation", linkage_method = link)
+    model$fit(X)
+    cat("\nLinkage:", link, "\n")
+    print(model$clusters)
+}
+```
+
+## Troubleshooting
+
+### Empty Clusters
+
+If K-means produces empty clusters, try:
+
+- Increasing `nstart` parameter (more random initializations)
+- Reducing K
+- Using HAC instead
+
+### ACM Convergence Issues
+
+If ACM doesn't converge:
+
+- Increase `max_iter`
+- Adjust `tol` (tolerance)
+- Check data quality (too many rare categories?)
+
+### Prediction Errors
+
+Ensure new data:
+
+- Has the same number of observations as training data
+- Contains only numeric variables (K-Means/HAC) or factors (ACM)
+- Has no missing values
+
+## Summary
+
+The **clustVarACC** package provides a modern, R6-based interface for variable clustering with:
+
+- Three complementary algorithms (K-Means, HAC, ACM)
+- Unified `fit()`, `predict()`, `plot()` methods
+- Automatic K selection (K-Means)
+- Rich visualizations (heatmaps, dendrograms, biplots)
+- Interactive Shiny application
+- Prediction on new variables
+
+For more information, see the package documentation:
+
+```{r help, eval=FALSE}
+?ClustVarKMeans
+?ClustVarHAC
+?ClustVarACM
+```
+
+## References
+
+- Vigneau, E., & Qannari, E. M. (2003). Clustering of variables around latent components. *Communications in Statistics - Simulation and Computation*, 32(4), 1131-1150.
+- Chavent, M., Kuentz-Simonet, V., Labenne, A., & Saracco, J. (2012). ClustOfVar: An R package for the clustering of variables. *Journal of Statistical Software*, 50(13), 1-16.
