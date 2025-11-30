@@ -26,7 +26,7 @@ The function uses mutli-starts for stability, with a first center determined ran
 The function then uses the LLOYD-MAX algorithm for K-Means for the assignment of the variables to the clusters and their updates, before storing the best results.
 
 ##### Usage
-ClustVarKMeans.fit(X, K=3, method="correlation",...)
+ClustVarKMeans$fit(X, K=3, method="correlation",...)
 
 ##### Arguments
 X : A data.frame or matrix with numeric variables to cluster.
@@ -40,7 +40,7 @@ Predicts cluster membership for new variables.
 Pre-emptively checks that the model as previously been fitted, aand that the new variables respects all the criteria as for the fit() function.
 
 ##### Usage
-ClustVarKMeans.predict(newdata, scaling="...")
+ClustVarKMeans$predict(newdata, scaling="...")
 
 ##### Arguments
 newdata : A data.frame or matrix with numeric variables to classify (observations as rows)
@@ -54,8 +54,8 @@ Returns : a data.frame with variable names, assigned clusters, and distances
 Prints brief model information
 
 ##### Usage
-Model <- ClustVarKMeans.fit(X, K=3, method="correlation",...)
-Model.print()
+Model <- ClustVarKMeans$fit(X, K=3, method="correlation",...)
+Model$print()
 
 ##### Value
 Returns the clusters and which variables are comprised in them.
@@ -66,8 +66,8 @@ Returns the clusters and which variables are comprised in them.
 Prints detailed model summary
 
 ##### Usage
-Model <- ClustVarKMeans.fit(X, K=3, method="correlation",...)
-Model.summary()
+Model <- ClustVarKMeans$fit(X, K=3, method="correlation",...)
+Model$summary()
 
 ##### Value
 Presents :
@@ -84,8 +84,8 @@ Presents :
 Gets the center variable (medoid) for each cluster.
 
 ##### Usage
-Model <- ClustVarKMeans.fit(X, K=3, method="correlation",...)
-Model.get_center_variables()
+Model <- ClustVarKMeans$fit(X, K=3, method="correlation",...)
+Model$get_center_variables()
 
 ##### Value
 Returns a character vector of center variable names
@@ -96,7 +96,7 @@ Returns a character vector of center variable names
 Automatically determines optimal K using the distance-to-line method
 
 ##### Usage
-ClustVarKMeans.elbow_method(X, K_min, K_max, plot=TRUE)
+ClustVarKMeans$elbow_method(X, K_min, K_max, plot=TRUE)
 
 ##### Arguments
 X : A data.frame or matrix with numeric variables
@@ -115,8 +115,8 @@ This function requires the \code{ggplot2} and \code{reshape2} packages to be ins
 
 
 ##### Usage
-Model <- ClustVarKmeans.fit(X)
-Model.plot(type=c("heatmap", "representativeness"))
+Model <- ClustVarKmeans$fit(X)
+Model$plot(type=c("heatmap", "representativeness"))
 
 ##### Arguments
 type : Character string, indicating the type of plot to generate: either "heatmap" or "representativeness"
@@ -149,7 +149,7 @@ Compute the distance matrix between variables, either based on the correlation o
 Apply stats::hclust and cut the tree based on K.
 
 ##### Usage
-ClustVarHAC.fit(X, K, method, linkage_method)
+ClustVarHAC$fit(X, K, method, linkage_method)
 
 ##### Arguments
 X : A data.frame or matrix containing only numeric variables to cluster.
@@ -163,7 +163,7 @@ Returns the object itself (invisibly) for method chaining.
 Predicts the cluster membership for new, illustrative numeric variables based on their mean absolute correlation to the existing clusters.
 
 ##### Usage
-ClustVarHAC.predict(newdata)
+ClustVarHAC$predict(newdata)
 
 ##### Arguments
 newdata : A data.frame or matrix of new numeric variables (must have the same number of observations as the training data, used for the fit function).
@@ -178,8 +178,8 @@ Plot  different visualizations for the HAC model.
 This function requires the ggdendro, ggplot2 and reshape2 packages to be installed.
 
 ##### Usage
-Model <- ClustVarHAC.fit(X)
-model.plot(type =c("dendrogram", "heights", "heatmap", "representativeness"),... )
+Model <- ClustVarHAC$fit(X)
+model$plot(type =c("dendrogram", "heights", "heatmap", "representativeness"),... )
 
 ##### Arguments
 type : character string, designing the type of plot: "dendrogram", "heights", "heatmap", or "representativeness" (Default : type="dendrogram").
@@ -196,8 +196,8 @@ Generates a gg2plot, depending on the chosen "type" :
 ##### Description
 Prints a concise summary of the HAC model parameters and status.
 ##### Usage
-Model <- ClustVarHAC.fit(X)
-Model.print()
+Model <- ClustVarHAC$fit(X)
+Model$print()
 
 ##### Value
 Returns  : 
@@ -213,8 +213,8 @@ Returns  :
 Displays a detailed summary including model parameters, the final cluster composition, and the cophenetic correlation.
 
 ##### Usage
-Model <- ClustVarHAC.fit(X)
-Model.summary()
+Model <- ClustVarHAC$fit(X)
+Model$summary()
 
 ##### Value
 Returns :
@@ -251,7 +251,7 @@ Then the algorithm reallocates each variable through Khi² test score calculatio
 The algorithm determines a criterion Q which constitutes the sum of the maximum association scores. It indicates the inertia of th model and therefore, intra-cluster quality.
 
 ##### Usage
-ClustVarACM.fit(X)
+ClustVarACM$fit(X)
 
 ##### Arguments
 X : A data.frame with categorical variables (factors) to cluster.
@@ -264,8 +264,8 @@ Returns the object itself (invisibly) for method chaining.
 ##### Description
 Prints a succinct summary of the model.
 ##### Usage
-Model <- ClustVarACM.fit(X)
-Model.print()
+Model <- ClustVarACM$fit(X)
+Model$print()
 
 ##### Value
 Returns  : 
@@ -279,8 +279,8 @@ Returns  :
 Displays a detailed summary of the clustering results.
 
 ##### Usage
-Model <- ClustVarACM.fit(X)
-Model.summary()
+Model <- ClustVarACM$fit(X)
+Model$summary()
 
 ##### Value
 Returns : 
@@ -298,7 +298,7 @@ Returns :
 Automatic selection for the optimal number of clusters K using the elbow method on the Q criterion.
 
 ##### Usage
-ClustVarACM.select_K(X, K_grid = 2:6, threshold=0.1)
+ClustVarACM$select_K(X, K_grid = 2:6, threshold=0.1)
 
 ##### Arguments
 X : A data.frame with categorical variables (factors) to cluster.
@@ -315,8 +315,8 @@ Predicts cluster membership for new illustrative variables.
 The new variables are not used to modify the clusters (non-active).
 
 ##### Usage
-Model <- ClustVarACM.fit(X, K)
-model.predict(newdata)
+Model <- ClustVarACM$fit(X, K)
+model$predict(newdata)
 
 ##### Arguments
 newdata : A data.frame with categorical variables to classify. It must have the same number of observations as the training data used with the fit() function.
@@ -332,8 +332,8 @@ The plots visualize the association (measured by Cramer's V or 1 - p.value) betw
 This function requires the ggplot2, ggrepel (for biplot), and reshape2 packages.
 
 ##### Usage
-Model <- ClustVarACM.fit(X)
-Model.plot(type = c("biplot", "representativeness", "heatmap"), axes = c(1, 2))
+Model <- ClustVarACM$fit(X)
+Model$plot(type = c("biplot", "representativeness", "heatmap"), axes = c(1, 2))
 
 ##### Arguments
 type : Character string indicating the type of plot to generate. Must be one of: "biplot", "representativeness" or "heatmap".
