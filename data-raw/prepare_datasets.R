@@ -70,7 +70,8 @@ files <- list(
     jobrate = "datasets/jobrate.csv",
     protein_dataset = "datasets/protein_dataset.csv",
     vehicle = "datasets/vehicle.csv",
-    vote_catvarclus = "datasets/vote_catvarclus.csv"
+    vote_catvarclus = "datasets/vote_catvarclus.csv",
+    tea_data = "datasets/tea_data.csv"
 )
 
 for (nm in names(files)) {

@@ -20,3 +20,8 @@ vote_catvarclus.csv
 AUTOS2005subset.txt
 - Description: Mixed data (numerical + categorical). No definitive clustering suggested by the original notes; used as an example of mixed-type data.
 - Example resource on mixed-data clustering: https://www.youtube.com/watch?v=Vhg0MKZ4t2E&list=PLi0b6yHwHZcHQbWGwvL9Ba4coy7GQUZJR&index=15
+
+tea_data.csv
+- Description: Tea consumption and preferences dataset with 300 observations and 18 categorical variables describing consumption patterns, timing (breakfast, tea.time, evening, lunch, dinner, always), places (home, work, tearoom, friends, resto, pub), tea type (black, Earl Grey, green), preparation (alone, milk, lemon, sugar), packaging (tea bag, unpackaged), purchase location (chain store, tea shop), and price category.
+- Typical interpretation: Excellent dataset for demonstrating ACM (Multiple Correspondence Analysis) clustering of categorical variables. Expected clusters might group by: (1) traditional tea drinkers (black tea, milk, sugar); (2) Earl Grey enthusiasts; (3) health-conscious consumers (green tea, no sugar); (4) social/occasional drinkers.
+- Use case: Ideal for exploring associations between tea preferences, consumption patterns, timing, and purchase behavior. All 18 variables are factors.
