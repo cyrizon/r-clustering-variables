@@ -91,7 +91,7 @@ fluidPage(
                 class = "btn-success btn-block"
             ),
             downloadButton("download_plot",
-                "Download Plot",
+                "Download Plots",
                 class = "btn-success btn-block",
                 style = "margin-top: 5px;"
             )

@@ -624,29 +624,91 @@ function(input, output, session) {
 
     output$download_plot <- downloadHandler(
         filename = function() {
-            paste0("clustering_plot_", Sys.Date(), ".png")
+            paste0("clustering_plots_", Sys.Date(), ".zip")
         },
         content = function(file) {
-            req(rv$results)
+            req(rv$results, rv$model)
 
-            png(file, width = 1200, height = 800, res = 120)
+            # Create temporary directory for plots
+            temp_dir <- tempdir()
+            plot_files <- c()
 
-            sizes <- sapply(rv$results$clusters, length)
-            names(sizes) <- paste0("Cluster ", seq_along(sizes))
+            tryCatch(
+                {
+                    # 1. Cluster sizes (always)
+                    sizes_file <- file.path(temp_dir, "01_cluster_sizes.png")
+                    png(sizes_file, width = 1200, height = 800, res = 120)
+                    plot_cluster_sizes(rv$results$clusters)
+                    dev.off()
+                    plot_files <- c(plot_files, sizes_file)
 
-            par(mar = c(5, 5, 3, 2))
-            bp <- barplot(sizes,
-                col = hcl.colors(length(sizes), "Set 2"),
-                main = "Number of Variables per Cluster",
-                ylab = "Number of Variables",
-                xlab = "Cluster",
-                border = NA,
-                ylim = c(0, max(sizes) * 1.2)
+                    # 2. Heatmap (always)
+                    heatmap_file <- file.path(temp_dir, "02_heatmap.png")
+                    png(heatmap_file, width = 1200, height = 1000, res = 120)
+                    plot_heatmap(rv$model)
+                    dev.off()
+                    plot_files <- c(plot_files, heatmap_file)
+
+                    # 3. Representativeness (always)
+                    repr_file <- file.path(temp_dir, "03_representativeness.png")
+                    png(repr_file, width = 1200, height = 800, res = 120)
+                    plot_representativeness(rv$model)
+                    dev.off()
+                    plot_files <- c(plot_files, repr_file)
+
+                    # 4. K-selection plot (K-Means with auto-k)
+                    if (rv$results$algorithm == "kmeans" && !is.null(rv$k_plot_data)) {
+                        k_file <- file.path(temp_dir, "04_k_selection.png")
+                        png(k_file, width = 1200, height = 800, res = 120)
+                        plot_k_selection(rv$k_plot_data, rv$optimal_k)
+                        dev.off()
+                        plot_files <- c(plot_files, k_file)
+                    }
+
+                    # 5. Dendrogram (HAC only)
+                    if (rv$results$algorithm == "hac") {
+                        dendro_file <- file.path(temp_dir, "04_dendrogram.png")
+                        png(dendro_file, width = 1400, height = 1000, res = 120)
+                        plot_dendrogram(rv$model)
+                        dev.off()
+                        plot_files <- c(plot_files, dendro_file)
+
+                        # 6. Heights/Scree plot (HAC only)
+                        heights_file <- file.path(temp_dir, "05_heights.png")
+                        png(heights_file, width = 1200, height = 800, res = 120)
+                        plot_heights(rv$model)
+                        dev.off()
+                        plot_files <- c(plot_files, heights_file)
+                    }
+
+                    # 7. ACM Biplot (ACM only)
+                    if (rv$results$algorithm == "acm") {
+                        biplot_file <- file.path(temp_dir, "04_acm_biplot.png")
+                        png(biplot_file, width = 1400, height = 1000, res = 120)
+                        tryCatch(
+                            {
+                                rv$model$plot(type = "biplot")
+                            },
+                            error = function(e) {
+                                plot.new()
+                                text(0.5, 0.5, paste("Biplot error:", e$message), cex = 1.2)
+                            }
+                        )
+                        dev.off()
+                        plot_files <- c(plot_files, biplot_file)
+                    }
+
+                    # Create ZIP file
+                    zip(zipfile = file, files = plot_files, flags = "-j9X")
+                },
+                error = function(e) {
+                    showNotification(
+                        paste("Error generating plots:", e$message),
+                        type = "error",
+                        duration = 5
+                    )
+                }
             )
-
-            text(bp, sizes, labels = sizes, pos = 3, cex = 1.2, font = 2)
-
-            dev.off()
         }
     )
 
