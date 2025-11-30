@@ -2,7 +2,7 @@
 
 Detailed documentation for each class of the r-clustering-variables package
 
-## ClustVarKMeans 
+## ClustVarKMeans *Simple K-Means Clustering for Variables (Educational Implementation)*
 ### Description
 R6 class which proposes a simplified version of K-means for variable clustering
 ### Parameters
@@ -108,8 +108,26 @@ plot : boolean, indicates whether to plot the elbow curve (default: TRUE)
 Retuns the optimal numbers of clusters.
 In the case where "plot=TRUE", the function also returns a plot to visualize the evolution of the model's inertia according to the number of clusters.
 
+#### plot *Draw the clustering results (heatmap or representativeness)*
+##### Description
+Generates visual representations of the clustering results using \code{ggplot2}.
+This function requires the \code{ggplot2} and \code{reshape2} packages to be installed.
 
-## ClustVarHAC *details*
+
+##### Usage
+Model <- ClustVarKmeans.fit(X)
+Model.plot(type=c("heatmap", "representativeness"))
+
+##### Arguments
+type : Character string, indicating the type of plot to generate: either "heatmap" or "representativeness"
+  
+##### Value
+* With the argument "type="heatmap"", the function displays a correlation matrix heatmap with variables ordered by cluster, with colors varying based on the metrics used. This is useful for visually confirming intra-cluster cohesion and inter-cluster separation. 
+* With the argument "type="representativeness"", the function displays a bar chart showing each variable's similarity (absolute correlation or normalized similarity, depending on the method used in the fit() function) to its assigned cluster center.. This helps identify the core variables within each cluster.
+
+
+
+## ClustVarHAC *Hierarchical Agglomerative Clustering (HAC) of variables*
 
 ### Description
 This class wraps the HAC algorithm for clustering numeric variables. It uses the base R function stats::hclust() on a distance matrix computedbetween the variables.
@@ -139,6 +157,7 @@ X : A data.frame or matrix containing only numeric variables to cluster.
 ##### Value
 Returns the object itself (invisibly) for method chaining.
 
+
 #### Predict *attach variables in X (illustrative variables) to the best cluster*
 ##### Description
 Predicts the cluster membership for new, illustrative numeric variables based on their mean absolute correlation to the existing clusters.
@@ -155,17 +174,22 @@ Returns a data.frame with the variable name, assigned cluster ID, and the maxima
 
 #### Plot
 ##### Description
-Draws the dendrogram resulting from the HAC.
+Plot  different visualizations for the HAC model.
+This function requires the ggdendro, ggplot2 and reshape2 packages to be installed.
 
 ##### Usage
 Model <- ClustVarHAC.fit(X)
-model.plot(K)
+model.plot(type =c("dendrogram", "heights", "heatmap", "representativeness"),... )
 
 ##### Arguments
-K: integer, the number of clusters to highlight on the plot (defaults to the model's K).
+type : character string, designing the type of plot: "dendrogram", "heights", "heatmap", or "representativeness" (Default : type="dendrogram").
 
 ##### Value
-Generates a dendrogram, representing the clustered variables.
+Generates a gg2plot, depending on the chosen "type" :
+* "dendrogram" : displays the hierarchical tree with the cut line for the selected K
+* "heights" : plots the fusion heights of the agglomerative steps (similar to a scree plot). This helps in visually selecting the optimal \code{K} based on the "elbow" rule.
+* "heatmap" : displays the correlation matrix of the variables, ordered by their cluster assignment. This confirms intra-cluster cohesion.
+* "representativeness" : bIdentic stylear chart showing each variable's similarity (correlation or normalized distance) to its calculated cluster centroid. Variables with high scores are considered the most representative of their cluster.
 
 
 #### Print
@@ -269,21 +293,6 @@ Returns :
 * a synthesis of the number of variables per cluster
 
 
-#### Plot
-##### Description
-Plots the variables in the space of the cluster axes (Factorial Map).
-This is a conceptual representation, visualizing the association between variables and cluster synthetic axes, using the association scores as coordinates.
-
-##### Usage
-Model <- ClustVarACM.fit(X)
-Model.plot(axes = 1:2)
-
-##### Arguments
-axes : Numeric vector of length 2, specifying the cluster axes to plot,  with two distinct integers between 1 and K (Default : axes=c(1,2)).
-
-##### Value
-Generates a plot.
-
 #### Select_K
 ##### Description
 Automatic selection for the optimal number of clusters K using the elbow method on the Q criterion.
@@ -315,3 +324,23 @@ newdata : A data.frame with categorical variables to classify. It must have the 
 ##### Value
 Returns A data.frame with variable names and their assigned cluster.
 
+
+#### Plot
+##### Description
+Plots visualizations for the ACM clustering model.
+The plots visualize the association (measured by Cramer's V or 1 - p.value) between each variable and the generated clusters.
+This function requires the ggplot2, ggrepel (for biplot), and reshape2 packages.
+
+##### Usage
+Model <- ClustVarACM.fit(X)
+Model.plot(type = c("biplot", "representativeness", "heatmap"), axes = c(1, 2))
+
+##### Arguments
+type : Character string indicating the type of plot to generate. Must be one of: "biplot", "representativeness" or "heatmap".
+axes : Numeric vector of length 2, specifying the cluster axes to plot (e.g.,c(1, 2) for the first two cluster dimensions in the biplot).
+
+##### Value
+Generates a plot or display depending on the selected type : 
+* "biplot" : A scatter plot projecting variables onto two specified cluster axes, visualizing their associations (e.g., to Cluster 1 vs Cluster 2).
+* "representativeness" : A bar chart showing the association strength (Cramer's V or Score) of each variable to its assigned cluster. Useful for identifying core variables.
+* "heatmap" : A matrix plot visualizing the association strength between all variables and all clusters. Variables are typically ordered by their cluster group.
