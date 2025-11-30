@@ -47,6 +47,7 @@ Variables are grouped based on their similarity (correlation or euclidean distan
 \item \href{#method-ClustVarKMeans-summary}{\code{ClustVarKMeans$summary()}}
 \item \href{#method-ClustVarKMeans-get_center_variables}{\code{ClustVarKMeans$get_center_variables()}}
 \item \href{#method-ClustVarKMeans-elbow_method}{\code{ClustVarKMeans$elbow_method()}}
+\item \href{#method-ClustVarKMeans-plot}{\code{ClustVarKMeans$plot()}}
 \item \href{#method-ClustVarKMeans-clone}{\code{ClustVarKMeans$clone()}}
 }
 }
@@ -183,6 +184,37 @@ Elbow method: automatically determine optimal K using distance-to-line method
 }
 \subsection{Returns}{
 Optimal number of clusters
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ClustVarKMeans-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-ClustVarKMeans-plot}{}}}
+\subsection{Method \code{plot()}}{
+Generates visual representations of the clustering results using \code{ggplot2}.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ClustVarKMeans$plot(type = c("heatmap", "representativeness"), ...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{type}}{Character string indicating the type of plot to generate:
+\itemize{
+\item \code{"heatmap"}: Displays a correlation matrix heatmap with variables ordered by cluster. This is useful for visually confirming intra-cluster cohesion and inter-cluster separation.
+\item \code{"representativeness"}: Displays a bar chart showing each variable's similarity (absolute correlation or normalized similarity) to its assigned cluster center (\code{self$centers}). This helps identify the core variables within each cluster.
+}}
+
+\item{\code{...}}{Additional arguments (currently unused).}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Details}{
+This function requires the \code{ggplot2} and \code{reshape2} packages to be installed
+for the \code{"heatmap"} and \code{"representativeness"} plots.
+}
+
+\subsection{Returns}{
+The object itself (invisibly).
 }
 }
 \if{html}{\out{<hr>}}

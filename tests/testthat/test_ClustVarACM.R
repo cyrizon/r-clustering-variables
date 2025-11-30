@@ -124,7 +124,7 @@ test_that("ClustVarACM: Initialization and input validation", {
     # Check that all variables have cluster assignments
     expect_true(all(!is.na(names(model$clusters))))
     expect_true(all(names(model$clusters) %in% names(data_test)))
-    
+
     # Heuristic: correlated variables often cluster together (but not guaranteed)
     # Just verify the structure makes sense rather than exact assignments
   })
@@ -211,5 +211,5 @@ test_that("ClustVarACM: Initialization and input validation", {
     model_k1$score_matrix <- matrix(0.5, nrow = 2, ncol = 1) # Mock score matrix
     model_k1$clusters <- c(1, 1) # Force assignment to 1
     # Plot requires K >= 2
-    expect_error(model_k1$plot(), "Plotting requires at least 2 clusters.")
+    expect_error(model_k1$plot(), "Biplot requires at least 2 clusters.")
   })

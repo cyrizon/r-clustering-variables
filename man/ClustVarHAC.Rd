@@ -109,20 +109,35 @@ A data.frame with the variable name, assigned cluster ID, and the maximal averag
 \if{html}{\out{<a id="method-ClustVarHAC-plot"></a>}}
 \if{latex}{\out{\hypertarget{method-ClustVarHAC-plot}{}}}
 \subsection{Method \code{plot()}}{
-Plots the dendrogram resulting from the HAC.
+Generates various diagnostic and interpretation plots for the HAC model.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClustVarHAC$plot(K = self$K)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ClustVarHAC$plot(
+  type = c("dendrogram", "heights", "heatmap", "representativeness"),
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{K}}{Integer, the number of clusters to highlight on the plot (defaults to the model's K).}
+\item{\code{type}}{Character string indicating the type of plot to generate. Must be one of:
+\itemize{
+\item \code{"dendrogram"}: Displays the hierarchical tree with the cut line for the selected \code{self$K}. Requires \code{ggdendro}.
+\item \code{"heights"}: Plots the fusion heights of the agglomerative steps (similar to a scree plot). This helps in visually selecting the optimal \code{K} based on the "elbow" rule.
+\item \code{"heatmap"}: Displays the correlation matrix of the variables, ordered by their cluster assignment. This confirms intra-cluster cohesion.
+\item \code{"representativeness"}: Bar chart showing each variable's similarity (correlation or normalized distance) to its calculated cluster centroid. Variables with high scores are considered the most representative of their cluster.
+}}
+
+\item{\code{...}}{Additional arguments passed to specific plot functions.}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Details}{
+Requires the \code{ggplot2}, \code{ggdendro}, and \code{reshape2} packages.
+}
+
 \subsection{Returns}{
-The object itself (invisibly), generates a plot
+A ggplot2 object.
 }
 }
 \if{html}{\out{<hr>}}

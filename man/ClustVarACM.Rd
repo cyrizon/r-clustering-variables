@@ -21,6 +21,8 @@ between each variable and its cluster's axis.
 
 \item{\code{score_matrix}}{matrix (p x K) containing the association strength between each variable and each cluster axis; the score corresponds to 1-p_value from KHI^2 test}
 
+\item{\code{cramer_matrix}}{Matrix (p x K) storing Cramer's V for visualization}
+
 \item{\code{Q_trace}}{numeric vector, holding the successive values ofr the criterion Q (sum of best scores)}
 
 \item{\code{Q_final}}{numeric, the final measure for the clustering quality (sum of intra-cluster associations)}
@@ -38,10 +40,10 @@ between each variable and its cluster's axis.
 \item \href{#method-ClustVarACM-fit}{\code{ClustVarACM$fit()}}
 \item \href{#method-ClustVarACM-print}{\code{ClustVarACM$print()}}
 \item \href{#method-ClustVarACM-summary}{\code{ClustVarACM$summary()}}
-\item \href{#method-ClustVarACM-plot}{\code{ClustVarACM$plot()}}
 \item \href{#method-ClustVarACM-select_K}{\code{ClustVarACM$select_K()}}
 \item \href{#method-ClustVarACM-plot_Q}{\code{ClustVarACM$plot_Q()}}
 \item \href{#method-ClustVarACM-predict}{\code{ClustVarACM$predict()}}
+\item \href{#method-ClustVarACM-plot}{\code{ClustVarACM$plot()}}
 \item \href{#method-ClustVarACM-clone}{\code{ClustVarACM$clone()}}
 }
 }
@@ -116,38 +118,19 @@ A list (invisibly) containing clusters, Q, and normalized Q.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ClustVarACM-plot"></a>}}
-\if{latex}{\out{\hypertarget{method-ClustVarACM-plot}{}}}
-\subsection{Method \code{plot()}}{
-Plot the variables in the space of the cluster axes (Factorial Map).
-This is a conceptual representation, visualizing the association between variables and cluster synthetic axes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClustVarACM$plot(axes = 1:2)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{axes}}{Numeric vector of length 2, specifying the cluster axes to plot (e.g., c(1, 2)).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-Nothing (invisible NULL), generates a plot.
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-ClustVarACM-select_K"></a>}}
 \if{latex}{\out{\hypertarget{method-ClustVarACM-select_K}{}}}
 \subsection{Method \code{select_K()}}{
 Automatic selection for the optimal number of clusters K using the elbow method on the Q criterion.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClustVarACM$select_K(K_grid = 2:6, threshold = 0.1)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ClustVarACM$select_K(X = self$data, K_grid = 2:6, threshold = 0.1)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
+\item{\code{X}}{A data.frame with categorical variables (factors) to cluster}
+
 \item{\code{K_grid}}{Integer vector of K values to test (e.g., 2:6).}
 
 \item{\code{threshold}}{Numeric tolerance for the relative gain in Q (default 0.1, or 10\%).}
@@ -190,6 +173,39 @@ The new variables are not used to modify the clusters (non-active).
 }
 \subsection{Returns}{
 A data.frame with variable names and their assigned cluster.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ClustVarACM-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-ClustVarACM-plot}{}}}
+\subsection{Method \code{plot()}}{
+Plot visualizations for the ACM clustering model.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ClustVarACM$plot(
+  type = c("biplot", "representativeness", "heatmap"),
+  axes = c(1, 2),
+  ...
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{type}}{Character string indicating the type of plot to generate. Must be one of:
+\itemize{
+\item \code{"biplot"}: A scatter plot projecting variables onto two specified cluster axes, visualizing their associations (e.g., to Cluster 1 vs Cluster 2). Requires \code{ggrepel}.
+\item \code{"representativeness"}: A bar chart showing the association strength (Cramer's V or Score) of each variable to its \strong{assigned} cluster. Useful for identifying core variables.
+\item \code{"heatmap"}: A matrix plot visualizing the association strength between \strong{all} variables and \strong{all} clusters. Variables are typically ordered by their cluster group.
+}}
+
+\item{\code{axes}}{Numeric vector of length 2, specifying the cluster axes to plot (e.g., \code{c(1, 2)} for the first two cluster dimensions in the biplot).}
+
+\item{\code{...}}{Additional arguments passed to specific plot functions (currently unused).}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+The generated \code{ggplot2} object (invisibly).
 }
 }
 \if{html}{\out{<hr>}}

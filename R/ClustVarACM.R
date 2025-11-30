@@ -374,7 +374,9 @@ ClustVarACM <- R6::R6Class(
             # Discretize the cluster axis (based on training data)
             zdisc <- cut(self$axes_list[[k]], breaks = 5, include.lowest = TRUE, ordered_result = TRUE)
 
+
             # Contingency table
+            tab <- table(fac, zdisc)
             tab <- tab[, colSums(tab) > 0, drop = FALSE]
 
             if (nrow(tab) < 2 || ncol(tab) < 2) {
@@ -407,7 +409,7 @@ ClustVarACM <- R6::R6Class(
     #' Plot visualizations for the ACM clustering model.
     #' @param type Character string indicating the type of plot to generate. Must be one of:
         #'   \itemize{
-        #'     \item \code{"biplot"}: A scatter plot projecting variables onto two specified cluster axes, visualizing their associations (e.g., to Cluster 1 vs Cluster 2). Requires \code{ggrepel}. 
+        #'     \item \code{"biplot"}: A scatter plot projecting variables onto two specified cluster axes, visualizing their associations (e.g., to Cluster 1 vs Cluster 2). Requires \code{ggrepel}.
         #'     \item \code{"representativeness"}: A bar chart showing the association strength (Cramer's V or Score) of each variable to its \strong{assigned} cluster. Useful for identifying core variables.
         #'     \item \code{"heatmap"}: A matrix plot visualizing the association strength between \strong{all} variables and \strong{all} clusters. Variables are typically ordered by their cluster group.
         #'   }
@@ -419,12 +421,12 @@ ClustVarACM <- R6::R6Class(
       type <- match.arg(type)
 
       # --- CHOICE OF METRICS ---
-      # If Cramer's matrix has been computed (in fit()) it will be used for visualization 
+      # If Cramer's matrix has been computed (in fit()) it will be used for visualization
       # since it allows more nuances than Khi^2 test score (Intensity vs Significativity)
       if (!is.null(self$cramer_matrix)) {
         data_matrix <- self$cramer_matrix
         metric_label <- "Cramer's V (Association Strength)"
-        # Biplot axes must be between 0 and 1 since Cramer's V max value is 1 
+        # Biplot axes must be between 0 and 1 since Cramer's V max value is 1
         axis_limits <- c(-0.05, 1.05)
       } else {
         data_matrix <- self$score_matrix
@@ -436,7 +438,7 @@ ClustVarACM <- R6::R6Class(
       if (type == "biplot") {
         if (self$K < 2) stop("Biplot requires at least 2 clusters.")
 
-        # Checking ggrepel package to avoid overlapping 
+        # Checking ggrepel package to avoid overlapping
         if (!requireNamespace("ggrepel", quietly = TRUE)) stop("Package 'ggrepel' is required.")
 
         df_plot <- data.frame(
