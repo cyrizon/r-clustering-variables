@@ -557,6 +557,127 @@ ClustVarKMeans <- R6::R6Class(
 
       message(sprintf("\u2713 Elbow method selected K = %d", K_optimal))
       return(K_optimal)
+    },
+
+    # ============================================================================
+    # MÉTHODE plot() CORRIGÉE pour ClustVarKMeans
+    # ============================================================================
+
+    plot = function(type = c("heatmap", "representativeness"), ...) {
+      type <- match.arg(type)
+
+      if (!self$fitted) stop("Model must be fitted before plotting.")
+
+      if (type == "heatmap") {
+        # Extract cluster assignments
+        clusters_vec <- integer(ncol(self$data))
+        names(clusters_vec) <- colnames(self$data)
+        for (k in seq_along(self$clusters)) {
+          vars_in_k <- self$clusters[[k]]
+          clusters_vec[vars_in_k] <- k
+        }
+
+        # Order variables by cluster
+        var_order <- names(clusters_vec)[order(clusters_vec)]
+        data_ordered <- self$data[, var_order, drop = FALSE]
+
+        # Compute correlation matrix
+        cor_mat <- cor(data_ordered)
+        cor_df <- reshape2::melt(cor_mat)
+        colnames(cor_df) <- c("Var1", "Var2", "Correlation")
+
+        cor_df$Var1 <- factor(cor_df$Var1, levels = var_order)
+        cor_df$Var2 <- factor(cor_df$Var2, levels = rev(var_order))
+
+        # Plot with professional color scheme
+        p <- ggplot2::ggplot(cor_df, ggplot2::aes(x = Var1, y = Var2, fill = Correlation)) +
+          ggplot2::geom_tile(color = "white") +
+          ggplot2::scale_fill_distiller(palette = "RdBu", limit = c(-1, 1),
+                                        direction = -1) +
+          ggplot2::labs(title = "Correlation Heatmap (Ordered by Clusters)",
+                        x = NULL, y = NULL) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
+          ggplot2::coord_fixed()
+
+        print(p)
+
+      } else if (type == "representativeness") {
+        # Calculate correlation to centers (higher = more representative)
+        X_norm <- self$data
+
+        if (self$method == "correlation") {
+          # Use direct correlation (range 0 to 1 after abs)
+          cor_mat <- abs(cor(X_norm))
+
+          # Build dataframe
+          repr_list <- list()
+          for (k in seq_along(self$clusters)) {
+            vars <- self$clusters[[k]]
+            center_idx <- self$centers[k]
+            center_var <- colnames(X_norm)[center_idx]
+
+            for (v in vars) {
+              repr_list[[length(repr_list) + 1]] <- data.frame(
+                variable = v,
+                cluster = as.factor(k),
+                representativeness = cor_mat[v, center_var],
+                stringsAsFactors = FALSE
+              )
+            }
+          }
+          repr_df <- do.call(rbind, repr_list)
+
+        } else {
+          # Euclidean: use 1 - normalized distance
+          dist_matrix <- as.matrix(dist(t(X_norm)))
+
+          repr_list <- list()
+          for (k in seq_along(self$clusters)) {
+            vars <- self$clusters[[k]]
+            center_idx <- self$centers[k]
+            center_var <- colnames(X_norm)[center_idx]
+
+            # Get distances for this cluster
+            cluster_dists <- dist_matrix[vars, center_var]
+            max_dist <- max(cluster_dists)
+
+            for (v in vars) {
+              # Normalize: 1 = most representative (distance 0), 0 = least representative
+              repr_val <- if (max_dist > 0) {
+                1 - (dist_matrix[v, center_var] / max_dist)
+              } else {
+                1  # Single variable cluster
+              }
+
+              repr_list[[length(repr_list) + 1]] <- data.frame(
+                variable = v,
+                cluster = as.factor(k),
+                representativeness = repr_val,
+                stringsAsFactors = FALSE
+              )
+            }
+          }
+          repr_df <- do.call(rbind, repr_list)
+        }
+
+        # Plot with horizontal bars, sorted by representativeness
+        p <- ggplot2::ggplot(repr_df, ggplot2::aes(x = reorder(variable, representativeness),
+                                                   y = representativeness, fill = cluster)) +
+          ggplot2::geom_col() +
+          ggplot2::coord_flip() +
+          ggplot2::labs(title = "Variable Representativeness",
+                        subtitle = "Similarity to cluster center (higher = more representative)",
+                        x = "Variable",
+                        y = if (self$method == "correlation") "Absolute Correlation" else "Normalized Similarity") +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(axis.text.y = ggplot2::element_text(size = 9)) +
+          ggplot2::facet_wrap(~cluster, scales = "free_y", ncol = 1)
+
+        print(p)
+      }
+
+      invisible(self)
     }
   )
 )

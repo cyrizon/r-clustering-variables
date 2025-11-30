@@ -19,6 +19,8 @@ ClustVarACM <- R6::R6Class(
     axes_list = NULL,
     #' @field score_matrix matrix (p x K) containing the association strength between each variable and each cluster axis; the score corresponds to 1-p_value from KHI^2 test
     score_matrix = NULL,
+    #' @field cramer_matrix Matrix (p x K) storing Cramer's V for visualization
+    cramer_matrix = NULL,
     #' @field Q_trace numeric vector, holding the successive values ofr the criterion Q (sum of best scores)
     Q_trace = NULL,
     #' @field Q_final numeric, the final measure for the clustering quality (sum of intra-cluster associations)
@@ -60,35 +62,29 @@ ClustVarACM <- R6::R6Class(
       if (self$K < 2 || self$K > p) stop("K must be between 2 and the number of variables.")
 
       # Initialize clusters: use a balanced round-robin initialization (then shuffle)
-      # This reduces the chance of empty clusters at start compared to pure random.
       if (is.null(self$clusters) || length(self$clusters) != p) {
         init_seq <- rep(1:self$K, length.out = p)
-        self$clusters <- sample(init_seq) # shuffle positions to avoid ordered bias
-        names(self$clusters) <- names(self$data) # assign variable names
+        self$clusters <- sample(init_seq)
+        names(self$clusters) <- names(self$data)
       }
 
-      # Main iterative algorithm (K-means for variables)
+      # Main iterative algorithm
       for (iter in 1:self$max_iter) {
-        # Wrap iteration in tryCatch to produce diagnostics on unexpected errors
+        # Wrap iteration in tryCatch
         iter_result <- tryCatch({
           # 1. Axis calculation (Synthetic variable for each cluster via MCA)
           self$axes_list <- vector("list", self$K)
           for (k in 1:self$K) {
             vars_k <- names(self$data)[self$clusters == k]
             if (length(vars_k) == 0) {
-              # Empty cluster
               self$axes_list[[k]] <- NULL
             } else if (length(vars_k) == 1) {
-              # Cluster with one variable: use the variable's numerical representation as axis
               self$axes_list[[k]] <- scale(as.numeric(self$data[[vars_k[1]]]), center = TRUE, scale = FALSE)
             } else {
-              # Cluster with multiple variables: use the first principal component (FPC) from MCA
               acm_k <- FactoMineR::MCA(self$data[, vars_k, drop = FALSE], ncp = 1, graph = FALSE)
-              # Defensive: ensure coord exists and has expected dimensions
               if (!is.null(acm_k$ind) && !is.null(acm_k$ind$coord) && ncol(acm_k$ind$coord) >= 1) {
                 self$axes_list[[k]] <- acm_k$ind$coord[, 1]
               } else {
-                # Fallback: build axis as first variable numeric encoding mean
                 warning(sprintf("MCA for cluster %d returned unexpected structure; using fallback axis.", k))
                 self$axes_list[[k]] <- scale(as.numeric(self$data[[vars_k[1]]]), center = TRUE, scale = FALSE)
               }
@@ -97,35 +93,30 @@ ClustVarACM <- R6::R6Class(
 
           # 2. Reallocation through KHI^2 test score calculation
           self$score_matrix <- matrix(0,
-            nrow = p, ncol = self$K,
-            dimnames = list(names(self$data), paste0("Cluster_", 1:self$K))
+                                      nrow = p, ncol = self$K,
+                                      dimnames = list(names(self$data), paste0("Cluster_", 1:self$K))
           )
 
-          for (j in 1:p) { # Iterate over all variables
+          for (j in 1:p) {
             fac <- self$data[[j]]
 
-            for (k in 1:self$K) { # Iterate over all cluster axes
+            for (k in 1:self$K) {
               if (!is.null(self$axes_list[[k]])) {
-                # Discretize the cluster axis into 5 classes
-                # Defensive: ensure axis length equals nrow(self$data)
                 axis_vec <- self$axes_list[[k]]
                 if (length(axis_vec) != nrow(self$data)) {
-                  # If lengths mismatch, try to recycle or fallback
-                  warning(sprintf("Axis length mismatch for cluster %d: axis_len=%d, expected=%d. Using NA-filled axis.", k, length(axis_vec), nrow(self$data)))
                   axis_vec <- rep(NA_real_, nrow(self$data))
                 }
                 zdisc <- cut(axis_vec, breaks = 5, include.lowest = TRUE, ordered_result = TRUE)
 
-                # Contingency table between variable j and discretized cluster axis k
+                # --- CORRECTION ICI : Création PUIS Nettoyage ---
                 tab <- table(fac, zdisc)
+                tab <- tab[, colSums(tab) > 0, drop = FALSE]
 
-                if (any(rowSums(tab) == 0) || any(colSums(tab) == 0)) {
-                  score <- 0 # Avoid chi-square test with zero marginals
+                if (nrow(tab) < 2 || ncol(tab) < 2) {
+                  score <- 0
                 } else {
-                  # Calculate the association: 1 - p_value of the Khi^2 test
                   test <- suppressWarnings(chisq.test(tab, correct = FALSE))
                   pval <- test$p.value
-                  # Guard against NA/NaN p-values (can occur with degenerate tables)
                   if (is.na(pval) || !is.finite(pval)) {
                     score <- 0
                   } else {
@@ -135,7 +126,6 @@ ClustVarACM <- R6::R6Class(
 
                 self$score_matrix[j, k] <- score
               } else {
-                # Cluster is empty
                 self$score_matrix[j, k] <- -Inf
               }
             }
@@ -144,43 +134,35 @@ ClustVarACM <- R6::R6Class(
           # Assign each variable to the cluster with the maximum association score
           new_clusters <- apply(self$score_matrix, 1, which.max)
 
-          # Handle empty clusters by reseeding: for each empty cluster, move one variable
-          # from the largest cluster (the variable with the lowest association to its current cluster)
+          # Handle empty clusters
           empty_clusters <- setdiff(seq_len(self$K), unique(new_clusters))
           if (length(empty_clusters) > 0) {
             cluster_counts <- table(factor(new_clusters, levels = seq_len(self$K)))
             for (empty_k in empty_clusters) {
-              # find largest cluster(s)
               largest_k <- as.integer(names(cluster_counts)[which.max(cluster_counts)])
               members <- which(new_clusters == largest_k)
               if (length(members) == 0) {
-                # nothing to move; try a random variable
                 candidate <- sample(seq_len(p), 1)
               } else {
-                # choose member with minimal association to its own cluster (weakest fit)
                 scores_in_largest <- sapply(members, function(i) {
                   val <- self$score_matrix[i, largest_k]
-                  if (is.na(val) || !is.finite(val)) return(Inf) # prefer not to pick NA as weak fit (fallback)
+                  if (is.na(val) || !is.finite(val)) return(Inf)
                   return(val)
                 })
-                # pick the member with smallest score (weakest association)
                 candidate <- members[which.min(scores_in_largest)]
               }
               new_clusters[candidate] <- empty_k
-              # update counts to avoid repeatedly picking same largest cluster
               cluster_counts <- table(factor(new_clusters, levels = seq_len(self$K)))
             }
           }
 
-          # Ensure no NA cluster assignments (which.max can return NA if row contains only NA)
+          # Ensure no NA cluster assignments
           if (any(is.na(new_clusters))) {
             na_idx <- which(is.na(new_clusters))
             for (ri in na_idx) {
               row_scores <- self$score_matrix[ri, , drop = TRUE]
-              # Replace NA with -Inf so which.max picks a valid index
               row_scores[is.na(row_scores)] <- -Inf
               new_clusters[ri] <- which.max(row_scores)
-              # If still NA (all -Inf), assign randomly
               if (is.na(new_clusters[ri]) || !is.finite(new_clusters[ri])) {
                 new_clusters[ri] <- sample(1:self$K, 1)
               }
@@ -190,22 +172,10 @@ ClustVarACM <- R6::R6Class(
           list(new_clusters = new_clusters, score_matrix = self$score_matrix)
         }, error = function(err) { stop(err) })
 
-        # Unpack result
         new_clusters <- iter_result$new_clusters
         self$score_matrix <- iter_result$score_matrix
 
         # 3. Criterion Q calculation
-        # Validate new_clusters before indexing score_matrix to avoid subscript errors
-        if (length(new_clusters) != p) {
-          stop(sprintf("Internal error: length(new_clusters) = %d but expected %d", length(new_clusters), p))
-        }
-        invalid_idx <- which(is.na(new_clusters) | new_clusters < 1 | new_clusters > self$K)
-        if (length(invalid_idx) > 0) {
-          stop("Invalid cluster assignments produced during reallocation.")
-        }
-
-        # Q is the sum of the maximum association scores (intra-cluster quality)
-        # Compute Q safely per-variable to catch any invalid indexing
         q_values <- numeric(p)
         for (j in seq_len(p)) {
           idx <- new_clusters[j]
@@ -219,15 +189,40 @@ ClustVarACM <- R6::R6Class(
         Q_new <- sum(q_values, na.rm = TRUE)
         self$Q_trace <- c(self$Q_trace, Q_new)
 
-        # 4. Stop criterion
         if (abs(Q_new - Q_old) < self$tol) {
           break
         }
 
-        # Update clusters for the next iteration
         self$clusters <- new_clusters
-        names(self$clusters) <- names(self$data) # ensure names are preserved
+        names(self$clusters) <- names(self$data)
         Q_old <- Q_new
+      }
+
+      # --- Calcul de la matrice de Cramér pour la visualisation (Heatmap) ---
+      p <- ncol(self$data)
+      self$cramer_matrix <- matrix(0, nrow = p, ncol = self$K,
+                                   dimnames = list(names(self$data), paste0("Cluster_", 1:self$K)))
+
+      for (j in 1:p) {
+        fac <- self$data[[j]]
+        for (k in 1:self$K) {
+          if (!is.null(self$axes_list[[k]])) {
+            axis_vec <- self$axes_list[[k]]
+            if(length(axis_vec) != nrow(self$data)) axis_vec <- rep(NA, nrow(self$data))
+            zdisc <- cut(axis_vec, breaks = 5, include.lowest = TRUE, ordered_result = TRUE)
+
+            # Création et nettoyage table
+            tab <- table(fac, zdisc)
+            tab <- tab[, colSums(tab) > 0, drop = FALSE]
+
+            if (nrow(tab) >= 2 && ncol(tab) >= 2) {
+              test <- suppressWarnings(chisq.test(tab, correct = FALSE))
+              n_obs <- sum(tab)
+              min_dim <- min(nrow(tab), ncol(tab))
+              self$cramer_matrix[j, k] <- sqrt(test$statistic / (n_obs * (min_dim - 1)))
+            }
+          }
+        }
       }
 
       self$Q_final <- Q_old
@@ -277,43 +272,6 @@ ClustVarACM <- R6::R6Class(
         Q = self$Q_final,
         Q_normalized = self$Q_final / ncol(self$data)
       ))
-    },
-
-
-    #' @description
-    #' Plot the variables in the space of the cluster axes (Factorial Map).
-    #' This is a conceptual representation, visualizing the association between variables and cluster synthetic axes.
-    #' @param axes Numeric vector of length 2, specifying the cluster axes to plot (e.g., c(1, 2)).
-    #' @return Nothing (invisible NULL), generates a plot.
-    plot = function(axes = 1:2) {
-      if (is.null(self$score_matrix)) stop("The model has not been fitted yet (run fit()).")
-      if (self$K < 2) stop("Plotting requires at least 2 clusters.")
-      if (length(axes) != 2 || any(axes < 1) || any(axes > self$K)) {
-        stop("The 'axes' parameter must be a vector of two distinct integers between 1 and K.")
-      }
-
-      # Use the association scores for visualization
-      # We project the variables onto the space defined by two cluster axes
-      scores_for_plot <- self$score_matrix[, axes, drop = FALSE]
-
-      plot(scores_for_plot,
-        pch = 19,
-        col = self$clusters, # Color points by their assigned cluster
-        xlab = paste("Association Score to Cluster", axes[1]),
-        ylab = paste("Association Score to Cluster", axes[2]),
-        main = "Projection des Variables sur les Axes de Clusters",
-        sub = "Couleur = Cluster Assigne (Score = 1 - p-value du Khi^2)",
-        asp = 1 # Keep the axes at the same scale
-      )
-
-      text(scores_for_plot, labels = names(self$data), pos = 4, col = self$clusters)
-      abline(h = 0, v = 0, lty = 2, col = "gray")
-
-      # Add legend for clusters
-      legend_text <- paste("Cluster", 1:self$K)
-      legend("topright", legend = legend_text, col = 1:self$K, pch = 19, title = "Clusters")
-
-      invisible(NULL)
     },
 
 
@@ -417,9 +375,9 @@ ClustVarACM <- R6::R6Class(
             zdisc <- cut(self$axes_list[[k]], breaks = 5, include.lowest = TRUE, ordered_result = TRUE)
 
             # Contingency table
-            tab <- table(fac, zdisc)
+            tab <- tab[, colSums(tab) > 0, drop = FALSE]
 
-            if (any(rowSums(tab) == 0) || any(colSums(tab) == 0)) {
+            if (nrow(tab) < 2 || ncol(tab) < 2) {
               score <- 0
             } else {
               test <- suppressWarnings(chisq.test(tab, correct = FALSE))
@@ -443,6 +401,133 @@ ClustVarACM <- R6::R6Class(
         Cluster_Assigned = clusters_pred,
         Max_Association_Score = max_scores
       ))
+    },
+
+    #' @description
+    #' Plot visualizations for the ACM clustering model.
+    #' @param type Type of plot: "biplot", "representativeness" or "heatmap".
+    #' @param axes Numeric vector of length 2, specifying the cluster axes to plot (for biplot).
+    #' @param ... Additional arguments passed to specific plot functions.
+    #' @return A ggplot2 object.
+    plot = function(type = c("biplot", "representativeness", "heatmap"), axes = c(1, 2), ...) {
+      if (is.null(self$score_matrix)) stop("Model must be fitted with $fit() before plotting.")
+      type <- match.arg(type)
+
+      # --- CHOIX DE LA MÉTRIQUE (Unifier la logique pour tous les graphiques) ---
+      # Si la matrice de Cramér a été calculée (dans fit), on l'utilise pour la visualisation
+      # car elle offre plus de nuances (Intensité) que le score Chi2 (Significativité).
+      if (!is.null(self$cramer_matrix)) {
+        data_matrix <- self$cramer_matrix
+        metric_label <- "Cramer's V (Association Strength)"
+        # Les axes du biplot doivent être entre 0 et 1 (Cramér max est 1)
+        axis_limits <- c(-0.05, 1.05)
+      } else {
+        data_matrix <- self$score_matrix
+        metric_label <- "Score (1 - p.value)"
+        axis_limits <- c(-0.05, 1.1)
+      }
+
+      # --- 1. BIPLOT ---
+      if (type == "biplot") {
+        if (self$K < 2) stop("Biplot requires at least 2 clusters.")
+
+        # Vérif package ggrepel pour éviter le chevauchement
+        if (!requireNamespace("ggrepel", quietly = TRUE)) stop("Package 'ggrepel' is required.")
+
+        df_plot <- data.frame(
+          variable = rownames(data_matrix),
+          x = data_matrix[, axes[1]],
+          y = data_matrix[, axes[2]],
+          cluster = as.factor(self$clusters),
+          stringsAsFactors = FALSE
+        )
+
+        p <- ggplot2::ggplot(df_plot, ggplot2::aes(x = x, y = y, color = cluster, label = variable)) +
+          ggplot2::geom_hline(yintercept = 0, color = "gray80", linetype = "dashed") +
+          ggplot2::geom_vline(xintercept = 0, color = "gray80", linetype = "dashed") +
+          # Jitter léger pour éviter les superpositions parfaites
+          ggplot2::geom_jitter(size = 3, alpha = 0.8, width = 0.01, height = 0.01) +
+          ggrepel::geom_text_repel(size = 3.5, box.padding = 0.5, max.overlaps = 20) +
+          ggplot2::scale_color_brewer(palette = "Set1", name = "Assigned Cluster") +
+          ggplot2::labs(
+            title = "Cluster Axes Projection (Biplot)",
+            subtitle = paste0(metric_label, " on Cluster ", axes[1], " vs ", axes[2]),
+            x = paste("Association to Cluster", axes[1]),
+            y = paste("Association to Cluster", axes[2])
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::coord_fixed(ratio = 1) +
+          ggplot2::scale_x_continuous(limits = axis_limits) +
+          ggplot2::scale_y_continuous(limits = axis_limits)
+
+        print(p)
+        return(invisible(p))
+
+        # --- 2. REPRESENTATIVENESS ---
+      } else if (type == "representativeness") {
+
+        # On récupère la valeur MAX de la métrique choisie pour chaque variable
+        vars <- names(self$clusters)
+        vals <- numeric(length(vars))
+
+        for(i in seq_along(vars)) {
+          k <- self$clusters[i]
+          vals[i] <- data_matrix[vars[i], k]
+        }
+
+        df_repr <- data.frame(
+          variable = vars,
+          cluster = as.factor(self$clusters),
+          value = vals,
+          stringsAsFactors = FALSE
+        )
+
+        p <- ggplot2::ggplot(df_repr, ggplot2::aes(x = reorder(variable, value), y = value, fill = cluster)) +
+          ggplot2::geom_col(width = 0.7) +
+          ggplot2::coord_flip() +
+          ggplot2::labs(
+            title = "Variable Representativeness",
+            subtitle = paste("Metric:", metric_label),
+            x = "Variable",
+            y = metric_label
+          ) +
+          ggplot2::theme_minimal() +
+          # Le Cramér est borné à 1, le score aussi
+          ggplot2::scale_y_continuous(limits = c(0, 1)) +
+          ggplot2::facet_wrap(~cluster, scales = "free_y", ncol = 1) +
+          ggplot2::scale_fill_brewer(palette = "Set1", guide = "none")
+
+        print(p)
+        return(invisible(p))
+
+        # --- 3. HEATMAP ---
+      } else if (type == "heatmap") {
+
+        # Transformation pour ggplot
+        df_heat <- reshape2::melt(data_matrix)
+        colnames(df_heat) <- c("Variable", "Cluster", "Value")
+
+        # Tri des variables
+        if (!is.null(self$clusters)) {
+          ord <- order(self$clusters)
+          vars_ordered <- names(self$clusters)[ord]
+          df_heat$Variable <- factor(df_heat$Variable, levels = vars_ordered)
+        }
+
+        p <- ggplot2::ggplot(df_heat, ggplot2::aes(x = Cluster, y = Variable, fill = Value)) +
+          ggplot2::geom_tile(color = "white", linewidth = 0.2) +
+          ggplot2::scale_fill_distiller(palette = "YlOrRd", direction = 1,
+                                        limits = c(0, 1), name = metric_label) +
+          ggplot2::labs(title = "Association Heatmap",
+                        subtitle = paste("Metric:", metric_label),
+                        x = NULL, y = NULL) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(panel.grid = ggplot2::element_blank()) +
+          ggplot2::coord_fixed(ratio = 0.5)
+
+        print(p)
+        return(invisible(p))
+      }
     }
   )
 )
