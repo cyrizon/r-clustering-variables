@@ -1,77 +1,89 @@
 # Variable Clustering - Shiny Application
 
+Interactive web application for exploring variable clustering algorithms without coding.
+
 ## 🚀 How to Run
 
-### Option 1: From RStudio
-
-1. Open `ui.R` or `server.R` in RStudio
-2. Click the "Run App" button at the top
-
-### Option 2: From R Console
+### From Installed Package (Recommended)
 
 ```r
-library(shiny)
-runApp("inst/shinyApp")
+library(clustVarACC)
+shiny::runApp(system.file("shinyApp", package = "clustVarACC"))
 ```
 
-### Option 3: From Package
+### From Development Mode
 
 ```r
-# After installing the package
-library(clustVarACC)
-# Run the app (requires implementation in package)
+# From package root directory
+pkg_root <- rprojroot::find_package_root_file()
+devtools::load_all(pkg_root)
+shiny::runApp(file.path(pkg_root, "inst/shinyApp"))
+
+# Or simply from RStudio
+# Open ui.R or server.R and click "Run App"
 ```
 
 ## 📋 Features
 
-### ✅ Implemented Features
+### 1. **Data Loading**
 
-1. **Data Loading**
+- Upload CSV/TSV files with automatic separator detection
+- Load example dataset (College data)
+- Support for numeric and categorical variables
+- Interactive data preview with sorting and filtering
 
-   - Upload CSV/TSV files with custom separators
-   - Load example dataset (College data)
-   - Automatic detection of numeric variables
-   - Data preview with interactive table
+### 2. **Algorithm Selection**
 
-2. **Variable Selection**
+Three complementary algorithms:
 
-   - Select which variables to include in clustering
-   - Multi-select checkbox interface
-   - Automatic filtering of non-numeric variables
+- **K-Means**: Fast clustering for numeric variables
+- **HAC**: Hierarchical clustering with dendrogram visualization
+- **ACM**: Multiple Correspondence Analysis for categorical variables
 
-3. **Clustering Configuration**
+### 3. **Variable Selection**
 
-   - Choose distance method: Correlation or Euclidean
-   - Manual k selection (2-10 clusters)
-   - Auto-detect optimal k using:
-     - Silhouette method
-     - Gap statistic method
-   - Visual feedback for optimal k
+- Dynamic variable filtering based on selected algorithm
+- Multi-select checkbox interface
+- Automatic type detection (numeric/categorical)
 
-4. **Results Visualization**
+### 4. **Clustering Configuration**
 
-   - Cluster assignments with color coding
-   - Cluster size barplot
-   - Variable distribution pie chart
-   - Correlation heatmap ordered by clusters
-   - Optimal k selection plot (when auto-detect is used)
-   - Detailed model summary
+- **Distance Method** (K-Means/HAC): Correlation or Euclidean
+- **Linkage Method** (HAC): Ward, Complete, Average, Single
+- **K Selection**: Manual (2-10) or automatic (elbow method)
+- **ACM Parameters**: Max iterations, convergence tolerance
 
-5. **Prediction**
+### 5. **Results Visualization**
 
-   - Classify new variables into existing clusters
-   - Upload new dataset for prediction
-   - View prediction results in interactive table
+- Cluster assignments with color-coded labels
+- Cluster size distribution
+- Variable representativeness (similarity to cluster center)
+- Correlation/association heatmaps ordered by clusters
+- **HAC-specific**: Dendrogram and fusion heights
+- **ACM-specific**: MCA biplot
+- **K-Means**: Elbow plot for optimal K selection
 
-6. **Export**
+### 6. **Clustering Metrics**
 
-   - Download clustering results as CSV
-   - Download plots as PNG images
+- **Homogeneity**: Intra-cluster cohesion
+- **Separation**: Inter-cluster distance
+- **Silhouette**: Variable assignment quality
+- **Cophenetic correlation** (HAC): Dendrogram faithfulness
+- **Q criterion** (ACM): Overall partition quality
 
-7. **Help & Documentation**
-   - Step-by-step usage guide
-   - Explanation of distance methods
-   - Use cases and interpretation tips
+### 7. **Prediction**
+
+- Classify new variables into existing clusters
+- Upload new dataset for prediction
+- Interactive results table with distances
+
+### 8. **Export**
+
+- **Download Results**: CSV file with cluster assignments
+- **Download Plots**: ZIP file with all generated visualizations
+  - Cluster sizes, heatmap, representativeness
+  - Algorithm-specific plots (dendrogram, biplot, elbow)
+  - High-resolution PNG images (1200x800 or 1400x1000)
 
 ## 🎯 Usage Instructions
 
@@ -89,11 +101,13 @@ library(clustVarACC)
 
 ### Step 3: Configure Clustering
 
-- **Distance Method**:
-  - **Correlation**: Groups variables with similar patterns (recommended for most cases)
+- **Algorithm**: Choose K-Means, HAC, or ACM based on your data type
+- **Distance Method** (numeric algorithms):
+  - **Correlation**: Groups variables with similar patterns (recommended)
   - **Euclidean**: Groups variables with similar values
+- **Linkage Method** (HAC only): Ward, Complete, Average, or Single
 - **Number of Clusters (k)**: Manually set 2-10 clusters
-- **Auto-detect**: Let the algorithm find optimal k automatically
+- **Auto-detect K** (K-Means only): Elbow method for optimal cluster count
 
 ### Step 4: Run Clustering
 
@@ -103,92 +117,106 @@ library(clustVarACC)
 
 ### Step 5: Explore Results
 
-- **Results Tab**: View cluster assignments and summary statistics
-- **Visualizations Tab**: Explore plots and heatmaps
-- **Predict Tab**: Classify new variables (optional)
+- **Results Tab**: View cluster assignments and detailed summary
+- **Visualizations Tab**: Explore multiple plots (sizes, heatmap, representativeness, etc.)
+- **Metrics Tab**: Evaluate clustering quality with homogeneity, separation, silhouette
+- **Predict Tab**: Classify new variables into existing clusters (optional)
 
 ### Step 6: Export
 
-- Download results as CSV file
-- Download plots as PNG images
+- **Download Results**: CSV file with variable-cluster assignments
+- **Download Plots**: ZIP file with all visualizations (PNG format, high resolution)
 
 ## 📊 Understanding Results
 
 ### Cluster Assignments
 
-Variables in the same cluster have similar behavior across observations:
+Variables in the same cluster have similar behavior:
 
-- **Correlation method**: Similar correlation patterns with other variables
-- **Euclidean method**: Similar value distributions
+- **K-Means/HAC with Correlation**: Similar correlation patterns
+- **K-Means/HAC with Euclidean**: Similar value distributions
+- **ACM**: Strong associations (χ²) with cluster synthetic axis
 
-### Correlation Heatmap
+### Visualizations
 
-- Variables are ordered by cluster
-- Black lines separate clusters
-- Red colors = positive correlation
-- Blue colors = negative correlation
-- Blocks along diagonal = within-cluster correlations
+**Heatmap** (all algorithms):
 
-### Optimal k Selection
+- Variables ordered by cluster with separator lines
+- K-Means/HAC: Correlation matrix (red = positive, blue = negative)
+- ACM: Cramér's V association matrix
 
-- **Silhouette**: Higher values = better-defined clusters
-- **Gap Statistic**: Peak indicates optimal number of clusters
+**Representativeness** (all algorithms):
+
+- Bar plot showing how well each variable represents its cluster
+- Higher values = more representative of cluster center/axis
+
+**Dendrogram** (HAC only):
+
+- Hierarchical tree structure of variable relationships
+- Cut line shows where clusters are formed
+
+**Biplot** (ACM only):
+
+- MCA visualization of variable categories and clusters
+- Proximity indicates association strength
+
+**Elbow Plot** (K-Means auto-k):
+
+- Within-cluster variance by K value
+- "Elbow" point suggests optimal cluster count
+
+### Clustering Metrics
+
+**Homogeneity**: Mean similarity within clusters (higher = more cohesive)
+
+**Separation**: Mean distance between clusters (higher = better separated)
+
+**Silhouette**: Quality of assignments (-1 to 1, >0.5 is good)
+
+**Cophenetic** (HAC): How well dendrogram preserves original distances
+
+**Q Criterion** (ACM): Sum of χ² associations (higher = stronger partition)
 
 ## 🔧 Requirements
 
-### R Packages
+### R Packages (automatically installed with clustVarACC)
 
-- `shiny` - Web application framework
-- `shinyjs` - JavaScript operations in Shiny
-- `DT` - Interactive tables
-- `R6` - Object-oriented programming
-- `cluster` - Silhouette and gap statistic (optional, for auto k detection)
+- `shiny`, `shinyjs`, `DT` - Web interface
+- `R6` - Object-oriented framework
+- `FactoMineR` - MCA for ACM algorithm
+- `ggplot2`, `reshape2`, `ggdendro` - Visualizations
+- `pheatmap` - Heatmaps
+- `data.table` - Fast data loading
 
 ### Data Requirements
 
-- CSV or TSV format
-- At least 2 numeric variables
-- No missing values (NA) in selected variables
-- For prediction: same number of rows as training data
-
-## 🐛 Troubleshooting
-
-### "No numeric variables found"
-
-- Make sure your dataset contains numeric columns
-- Check that separator is correctly configured
-
-### "X must have the same number of observations"
-
-- For prediction, new dataset must have same number of rows
-- Variables can be different, but observations must match
-
-### "Package 'cluster' not available"
-
-- Auto k detection requires the `cluster` package
-- Install with: `install.packages("cluster")`
-- Or use manual k selection instead
-
-### App won't start
-
-- Make sure all required packages are installed
-- Check that R working directory is correct
-- Verify file paths in `server.R` line 9
-
-## 💡 Tips
-
-1. **Start with auto-detect k**: Let the algorithm suggest optimal number of clusters
-2. **Try both methods**: Correlation usually works better for variable clustering
-3. **Check heatmap**: Verify that clusters make sense visually
-4. **Export results**: Save results for further analysis in R or Excel
-5. **Use prediction**: Classify new variables collected later
+- **Format**: CSV, TSV, or Parquet
+- **Variables**: At least 2 variables of appropriate type
+  - K-Means/HAC: numeric variables
+  - ACM: categorical variables (factors)
+- **Missing values**: Not supported (remove or impute beforehand)
+- **Prediction**: New data must have same number of observations as training data
 
 ## 📚 More Information
 
-For technical details about the K-means algorithm:
+### Package Documentation
 
-- See `../../R/ClustVarKMeans.R`
-- Check documentation: `?ClustVarKMeans`
+```r
+# View comprehensive vignette
+vignette("intro_package", package = "clustVarACC")
+
+# Algorithm help pages
+?ClustVarKMeans
+?ClustVarHAC
+?ClustVarACM
+```
+
+### Source Code
+
+- K-Means: `R/algorithms/KMeansVariablesR6.R`
+- HAC: `R/algorithms/HACVariablesR6.R`
+- ACM: `R/algorithms/ACMVariablesR6.R`
+- Shiny app: `inst/shinyApp/`
 
 ## 🎓 Academic Use
 

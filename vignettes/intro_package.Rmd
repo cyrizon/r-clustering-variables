@@ -50,6 +50,83 @@ remotes::install_github("cyrizon/r-clustering-variables")
 library(clustVarACC)
 ```
 
+## Package Datasets
+
+The package includes several example datasets for demonstration:
+
+```{r eval=FALSE}
+# List all datasets in the package
+data(package = "clustVarACC")
+
+# Load a specific dataset
+data("tea_data", package = "clustVarACC")
+head(tea_data)
+```
+
+**Available datasets:**
+
+- **Standard R datasets**: `mtcars`, `iris` (numeric variables)
+- **HairEyeColor**: Categorical data suitable for ACM
+- **tea_data**: 300 observations, 18 categorical variables about tea consumption patterns (ideal for ACM examples)
+- **acp_voitures**, **vehicle**, **protein_dataset**: Numeric datasets for K-Means/HAC
+- **vote_catvarclus**: Categorical dataset for ACM
+
+For more information about a dataset:
+```{r eval=FALSE}
+?tea_data
+```
+
+## Data Preparation
+
+**Important**: Before clustering, ensure your data has the correct variable types:
+
+### For K-Means and HAC (Numeric Variables)
+
+```{r eval=FALSE}
+# Check variable types
+str(your_data)
+
+# Ensure all columns are numeric
+data(acp_voitures)
+str(acp_voitures)
+
+# If variables are characters/factors, convert to numeric
+# Remove non-numeric columns first
+numeric_data <- acp_voitures[, sapply(acp_voitures, is.numeric)]
+
+# Or convert specific columns
+acp_voitures$column_name <- as.numeric(acp_voitures$column_name)
+```
+
+### For ACM (Categorical Variables)
+
+```{r eval=FALSE}
+# Check variable types
+str(your_data)
+
+# Ensure all columns are factors
+data(tea_data)
+str(tea_data)
+
+# If variables are characters, convert to factors
+tea_data[] <- lapply(tea_data, as.factor)
+
+# Or convert specific columns
+your_data$column_name <- as.factor(your_data$column_name)
+
+# For numeric variables that represent categories, convert them
+# your_data$category_var <- factor(your_data$category_var)
+```
+
+**Quick check before clustering:**
+```{r eval=FALSE}
+# For K-Means/HAC: all columns should be numeric
+all(sapply(your_data, is.numeric))
+
+# For ACM: all columns should be factors
+all(sapply(your_data, is.factor))
+```
+
 ## Example 1: K-Means Variable Clustering
 
 ### Basic Usage
