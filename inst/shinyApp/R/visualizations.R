@@ -1,3 +1,16 @@
+# =============================================================================
+# VISUALIZATION HELPERS (LEGACY / HYBRID)
+# =============================================================================
+# NOTE:
+# The heatmap and distribution functions below are DEPRECATED.
+# Please use the internal R6 methods instead:
+#   model$plot(type = "heatmap")
+#   model$plot(type = "representativeness")
+#
+# Only 'plot_cluster_sizes' and 'plot_k_selection' are still used by Shiny.
+# =============================================================================
+
+
 #' Plot eta² heatmap for ACM clustering
 #' @param acm_model ClustVarACM fitted model
 #' @return NULL (side effect: creates plot)

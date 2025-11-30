@@ -593,7 +593,7 @@ ClustVarKMeans <- R6::R6Class(
         p <- ggplot2::ggplot(cor_df, ggplot2::aes(x = Var1, y = Var2, fill = Correlation)) +
           ggplot2::geom_tile(color = "white") +
           ggplot2::scale_fill_distiller(palette = "RdBu", limit = c(-1, 1),
-                                        direction = 1) +
+                                        direction = -1) +
           ggplot2::labs(title = "Correlation Heatmap (Ordered by Clusters)",
                         x = NULL, y = NULL) +
           ggplot2::theme_minimal() +

@@ -132,12 +132,10 @@ fluidPage(
                     fluidRow(
                         column(
                             6,
-                            h4("Cluster Sizes"),
                             plotOutput("plot_sizes", height = "300px")
                         ),
                         column(
                             6,
-                            h4("Variable Distribution"),
                             plotOutput("plot_distribution", height = "300px")
                         )
                     ),
@@ -145,11 +143,25 @@ fluidPage(
                     fluidRow(
                         column(
                             12,
-                            h4("Correlation Heatmap"),
                             plotOutput("plot_heatmap", height = "500px")
                         )
                     ),
                     br(),
+                    conditionalPanel(
+                      condition = "input.algorithm == 'hac'",
+                      h3("Hierarchical Clustering Specifics"),
+                      fluidRow(
+                        column(12,
+                               plotOutput("plot_dendrogram", height = "500px")
+                        )
+                      ),
+                      br(),
+                      fluidRow(
+                        column(12,
+                               plotOutput("plot_heights", height = "400px")
+                        )
+                      )
+                    ),
                     conditionalPanel(
                         condition = "input.auto_k == true",
                         h4("Optimal k Selection"),
