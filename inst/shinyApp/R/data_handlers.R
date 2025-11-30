@@ -21,15 +21,32 @@ detect_separator <- function(file_path) {
 # =============================================================================
 
 #' Load example College dataset or generate synthetic data
-#' @param data_path Path to College_Data file
+#' @param data_path Path to College_Data file (default tries multiple locations)
 #' @return data.frame with example data
-load_example_data <- function(data_path = "../../tests/testthat/College_Data") {
-  if (file.exists(data_path)) {
+load_example_data <- function(data_path = NULL) {
+  # Try multiple locations for the example data
+  if (is.null(data_path)) {
+    possible_paths <- c(
+      "../../tests/datasets/College_Data", # Dev mode from inst/shinyApp
+      system.file("tests/datasets/College_Data", package = "clustVarACC"), # Installed package
+      "College_Data" # Current directory fallback
+    )
+
+    for (path in possible_paths) {
+      if (file.exists(path) && path != "") {
+        data_path <- path
+        break
+      }
+    }
+  }
+
+  if (!is.null(data_path) && file.exists(data_path)) {
     data <- read.csv(data_path, row.names = 1)
-    message("Example data loaded from file")
+    message("Example data loaded from file: ", data_path)
     return(data)
   } else {
     # Generate synthetic data if example not found
+    message("Example data file not found, generating synthetic data")
     set.seed(42)
     n <- 100
     data <- data.frame(

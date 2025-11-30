@@ -6,18 +6,22 @@ message("========================================")
 message("Loading Shiny App Global Configuration")
 message("========================================")
 
-# Load required packages
-if (!require("shiny")) install.packages("shiny")
-if (!require("shinyjs")) install.packages("shinyjs")
-if (!require("DT")) install.packages("DT")
-if (!require("R6")) install.packages("R6")
-if (!require("FactoMineR")) install.packages("FactoMineR")
+# =============================================================================
+# Load Required Packages
+# =============================================================================
 
-library(shiny)
-library(shinyjs)
-library(DT)
-library(R6)
-library(FactoMineR)
+# Check if running from installed package or dev environment
+is_installed <- requireNamespace("clustVarACC", quietly = TRUE)
+
+# Core Shiny packages (always needed)
+required_packages <- c("shiny", "shinyjs", "DT")
+
+for (pkg in required_packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+        install.packages(pkg)
+    }
+    library(pkg, character.only = TRUE)
+}
 
 # Set options
 options(shiny.maxRequestSize = 300 * 1024^2) # Max upload size: 300MB
@@ -26,15 +30,12 @@ options(shiny.maxRequestSize = 300 * 1024^2) # Max upload size: 300MB
 # Load Algorithm Classes
 # =============================================================================
 
-# Check if running from installed package or dev environment
-is_installed <- requireNamespace("clustVarACC", quietly = TRUE)
-
 has_kmeans <- FALSE
 has_hac <- FALSE
 has_acm <- FALSE
 
 if (is_installed) {
-    # Load from installed package
+    # Load from installed package (includes all dependencies)
     message("\nLoading classes from installed package...")
     library(clustVarACC)
     has_kmeans <- exists("ClustVarKMeans")
@@ -42,9 +43,20 @@ if (is_installed) {
     has_acm <- exists("ClustVarACM")
     message("✓ Classes loaded from package")
 } else {
-    # Load from source files (development mode)
-    message("\nLoading classes from source files (dev mode)...")
+    # Development mode: load dependencies and source files
+    message("\nDevelopment mode: Loading dependencies and source files...")
 
+    # Load R6 and other algorithm dependencies
+    dev_packages <- c("R6", "FactoMineR", "ggplot2", "reshape2", "ggdendro")
+    for (pkg in dev_packages) {
+        if (!requireNamespace(pkg, quietly = TRUE)) {
+            message(paste("Installing missing package:", pkg))
+            install.packages(pkg)
+        }
+        suppressPackageStartupMessages(library(pkg, character.only = TRUE))
+    }
+
+    # Load algorithm classes from source
     tryCatch(
         {
             source("../../R/ClustVarKMeans.R")
@@ -83,10 +95,16 @@ if (is_installed) {
 
     # Load helper modules (dev mode only)
     message("\nLoading helper modules...")
-    tryCatch(source("../../R/alg_helpers.R"), error = function(e) message("✗ alg_helpers.R not found"))
-}
-
-# Load Shiny app helper modules (always from app directory)
+    tryCatch(
+        {
+            source("../../R/alg_helpers.R")
+            message("✓ alg_helpers.R loaded successfully")
+        },
+        error = function(e) {
+            message(paste("✗ alg_helpers.R not found:", e$message))
+        }
+    )
+} # Load Shiny app helper modules (always from app directory)
 message("\nLoading Shiny app modules...")
 source("R/data_handlers.R")
 source("R/clustering_logic.R")

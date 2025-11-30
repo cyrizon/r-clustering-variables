@@ -2,10 +2,7 @@
 # Variable Clustering - Shiny Server
 # Server logic for K-Means variable clustering application
 # =============================================================================
-
-library(shiny)
-library(DT)
-library(R6)
+# Note: Required packages are loaded in global.R
 
 # Server function
 function(input, output, session) {
@@ -54,7 +51,7 @@ function(input, output, session) {
                 rv$optimal_k <- NULL
                 rv$k_plot_data <- NULL
 
-                rv$data <- load_example_data("../../tests/testthat/College_Data")
+                rv$data <- load_example_data() # Auto-detects path (dev or installed)
                 rv$numeric_vars <- extract_numeric_vars(rv$data)
                 rv$categorical_vars <- extract_categorical_vars(rv$data)
                 rv$dataset_type <- detect_dataset_type(rv$data)

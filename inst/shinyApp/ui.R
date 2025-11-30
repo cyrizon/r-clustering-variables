@@ -2,9 +2,7 @@
 # Variable Clustering - Shiny Application
 # Interactive interface for K-Means variable clustering
 # =============================================================================
-
-library(shiny)
-library(shinyjs)
+# Note: Required packages are loaded in global.R
 
 # UI Definition
 fluidPage(
@@ -148,19 +146,21 @@ fluidPage(
                     ),
                     br(),
                     conditionalPanel(
-                      condition = "input.algorithm == 'hac'",
-                      h3("Hierarchical Clustering Specifics"),
-                      fluidRow(
-                        column(12,
-                               plotOutput("plot_dendrogram", height = "500px")
+                        condition = "input.algorithm == 'hac'",
+                        h3("Hierarchical Clustering Specifics"),
+                        fluidRow(
+                            column(
+                                12,
+                                plotOutput("plot_dendrogram", height = "500px")
+                            )
+                        ),
+                        br(),
+                        fluidRow(
+                            column(
+                                12,
+                                plotOutput("plot_heights", height = "400px")
+                            )
                         )
-                      ),
-                      br(),
-                      fluidRow(
-                        column(12,
-                               plotOutput("plot_heights", height = "400px")
-                        )
-                      )
                     ),
                     conditionalPanel(
                         condition = "input.auto_k == true",
