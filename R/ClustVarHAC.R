@@ -150,8 +150,15 @@ ClustVarHAC <- R6::R6Class(
         },
 
         #' @description
-        #' Plot visualizations for the HAC model.
-        #' @param type Type of plot: "dendrogram" (default), "heights", "heatmap", or "representativeness".
+        #' Generates various diagnostic and interpretation plots for the HAC model.
+        #' @details Requires the \code{ggplot2}, \code{ggdendro}, and \code{reshape2} packages.
+        #' @param type Character string indicating the type of plot to generate. Must be one of:
+        #'   \itemize{
+        #'     \item \code{"dendrogram"}: Displays the hierarchical tree with the cut line for the selected \code{self$K}. Requires \code{ggdendro}. 
+        #'     \item \code{"heights"}: Plots the fusion heights of the agglomerative steps (similar to a scree plot). This helps in visually selecting the optimal \code{K} based on the "elbow" rule.
+        #'     \item \code{"heatmap"}: Displays the correlation matrix of the variables, ordered by their cluster assignment. This confirms intra-cluster cohesion.
+        #'     \item \code{"representativeness"}: Bar chart showing each variable's similarity (correlation or normalized distance) to its calculated cluster centroid. Variables with high scores are considered the most representative of their cluster.
+        #'   }
         #' @param ... Additional arguments passed to specific plot functions.
         #' @return A ggplot2 object.
         plot = function(type = c("dendrogram", "heights", "heatmap", "representativeness"), ...) {
@@ -159,22 +166,22 @@ ClustVarHAC <- R6::R6Class(
           if (!self$fitted) stop("Model must be fitted with $fit() before plotting.")
           type <- match.arg(type)
 
-          # --- 1. DENDROGRAM (Style "S3" amélioré) ---
+          # --- 1. DENDROGRAM (Ameliorated "S3" style ) ---
           if (type == "dendrogram") {
             if (!requireNamespace("ggdendro", quietly = TRUE)) stop("Package 'ggdendro' is required.")
-
-            # Conversion en dendrogramme pour ggdendro
+entre l'avant-dernière et la dernière fusion
+            # Conversion to dendrogramme for ggdendro
             dend <- as.dendrogram(self$model)
             dend_data <- ggdendro::dendro_data(dend, type = "rectangle")
 
-            # Calcul précis de la hauteur de coupure
-            # hclust$height contient les hauteurs triées.
-            # Pour K clusters, la coupure est entre la fusion N-K et N-K+1
+            # Precise calculation of cut height
+            # hclust$height contains the sorted heights.
+            # For K clusters, the cut will be between N-K and N-K+1
             n_vars <- length(self$model$labels)
             h <- self$model$height
 
-            # Si K=2, on coupe entre l'avant-dernière et la dernière fusion
-            # Index de la fusion qui crée K clusters :
+            # If K=2, the cut is between the penultimate and the last merger
+            # Indexing the merger which creates K clusters :
             idx_cut <- n_vars - self$K
 
             if (self$K == 1) {
@@ -182,21 +189,21 @@ ClustVarHAC <- R6::R6Class(
             } else if (self$K == n_vars) {
               cut_val <- min(h) / 2
             } else {
-              # Moyenne entre la hauteur où on a K clusters et celle où on passe à K-1
+              # Average between the height where we have K clusters and the height where we reach K-1
               cut_val <- (h[idx_cut] + h[idx_cut + 1]) / 2
             }
 
-            # Construction du plot
+            # Plot Building
             p <- ggplot2::ggplot(ggdendro::segment(dend_data)) +
               ggplot2::geom_segment(ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
                                     linewidth = 0.6, color = "gray30") + # linewidth au lieu de size
               ggplot2::geom_text(data = ggdendro::label(dend_data),
                                  ggplot2::aes(x = x, y = y, label = label),
                                  hjust = 1, nudge_y = -0.01, size = 3.5) +
-              # Ligne de coupure
+              # Cutting line
               ggplot2::geom_hline(yintercept = cut_val,
                                   color = "#E41A1C", linetype = "dashed", linewidth = 0.8) +
-              # Labels et Thème
+              # Labels and theme
               ggplot2::labs(title = "Hierarchical Clustering Dendrogram",
                             subtitle = paste("Linkage:", self$linkage_method, "| Distance:", self$method,
                                              "\nRed line indicates cut for K =", self$K),
@@ -210,7 +217,7 @@ ClustVarHAC <- R6::R6Class(
                 plot.title = ggplot2::element_text(face = "bold", size = 12),
                 plot.subtitle = ggplot2::element_text(color = "gray50", size = 10)
               ) +
-              # Orientation horizontale (plus lisible pour les noms)
+              # Horizontal orientation (for better readability)
               ggplot2::coord_flip() +
               ggplot2::scale_y_reverse(expand = ggplot2::expansion(mult = c(0.15, 0.05)))
 
@@ -245,7 +252,7 @@ ClustVarHAC <- R6::R6Class(
           } else if (type == "heatmap") {
             if (is.null(self$clusters)) stop("No clusters found.")
 
-            # Récupération des clusters et tri
+            # Collecting and sorting clusters
             var_names <- rownames(self$data)
             cluster_vec <- setNames(rep(NA, length(var_names)), var_names)
             for (k_idx in seq_along(self$clusters)) {
@@ -273,11 +280,11 @@ ClustVarHAC <- R6::R6Class(
             print(p)
             return(invisible(p))
 
-          # --- 4. REPRESENTATIVENESS (Adapté du K-Means) ---
+          # --- 4. REPRESENTATIVENESS (Adapted from K-Means) ---
           } else if (type == "representativeness") {
 
-            # En CAH, les variables sont en LIGNES dans self$data
-            # On doit calculer un "centroïde" (profil moyen) pour chaque cluster
+            # Note : While using HAC, variables must on LINES in self$data
+            # Calculating a "centroid" (average profile) fo each cluster.
 
             repr_list <- list()
 
@@ -285,22 +292,22 @@ ClustVarHAC <- R6::R6Class(
               vars_in_k <- self$clusters[[k_idx]]
               if (length(vars_in_k) == 0) next
 
-              # Extraction des données du cluster (Vars x Obs)
+              # Extracting data from cluster (Vars x Obs)
               sub_data <- self$data[vars_in_k, , drop = FALSE]
 
-              # Calcul du Centroïde (Moyenne des variables du cluster)
-              # Si une seule variable, c'est elle-même le centre
+              # Computing centroid (Average of the cluster variables)
+              # if number of variables = 1, it is the center itself
               if (length(vars_in_k) == 1) {
                 centroid <- sub_data[1, ]
               } else {
                 centroid <- colMeans(sub_data)
               }
 
-              # --- CAS 1 : CORRELATION ---
+              # --- CASE 1 : CORRELATION ---
               if (self$method == "correlation") {
-                # On calcule la corrélation de chaque variable avec le profil moyen (centroïde)
+                # Calculate the correlation of each variable with the average profile (centroid)
                 # cor(x, y) calcule la corrélation linéaire
-                # On transpose sub_data pour avoir (Obs x Vars) pour la fonction cor
+                # Transposing sub_data to get (Obs x Vars) for function cor
                 corrs <- as.vector(abs(cor(t(sub_data), centroid)))
 
                 df_k <- data.frame(
@@ -310,13 +317,13 @@ ClustVarHAC <- R6::R6Class(
                   stringsAsFactors = FALSE
                 )
 
-                # --- CAS 2 : EUCLIDIENNE ---
+                # --- CASE 2 : EUCLIDEAN  ---
               } else {
-                # Calcul de la distance euclidienne au centroïde
+                # Computen euclidean distance to the centroid 
                 dists <- apply(sub_data, 1, function(x) sqrt(sum((x - centroid)^2)))
                 max_dist <- max(dists)
 
-                # Normalisation : 1 = au centre (dist 0), 0 = le plus loin
+                # Normalizing : 1 = in the center (dist 0), 0 = the furthest away
                 repr_val <- if (max_dist > 0) {
                   1 - (dists / max_dist)
                 } else {
@@ -335,7 +342,7 @@ ClustVarHAC <- R6::R6Class(
 
             repr_df <- do.call(rbind, repr_list)
 
-            # Plot (Style identique au K-Means : barres horizontales triées)
+            # Plot (Identic style to the K-Means one : Horizontal sorted bars)
             p <- ggplot2::ggplot(repr_df, ggplot2::aes(x = reorder(variable, representativeness),
                                                        y = representativeness, fill = cluster)) +
               ggplot2::geom_col() + # Barres standard (plus fines que le pavé précédent)
