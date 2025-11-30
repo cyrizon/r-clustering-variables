@@ -521,20 +521,14 @@ function(input, output, session) {
 
     # Variable Representativeness (Bar plot)
     output$plot_distribution <- renderPlot({
-      req(rv$model)
-      # Display variable-cluster association scores
-      rv$model$plot(type = "representativeness")
+        req(rv$model)
+        plot_representativeness(rv$model)
     })
 
-    # Correlation or Association Heatmap (Unified R6 method)
+    # Correlation or Association Heatmap
     output$plot_heatmap <- renderPlot({
-      # Ensure model is fitted and available
-      req(rv$model)
-
-      # The plot method handles the metric automatically:
-      # - ACM: Cramer's V heatmap
-      # - K-Means/HAC: Correlation heatmap
-      rv$model$plot(type = "heatmap")
+        req(rv$model)
+        plot_heatmap(rv$model)
     })
 
     # K selection plot
@@ -545,19 +539,14 @@ function(input, output, session) {
 
     # HAC Dendrogram
     output$plot_dendrogram <- renderPlot({
-      # Check that model exists and algorithm is HAC
-      req(rv$model, rv$results$algorithm == "hac")
-
-      # Call internal R6 plot method
-      rv$model$plot(type = "dendrogram")
+        req(rv$model, rv$results$algorithm == "hac")
+        plot_dendrogram(rv$model)
     })
 
     # HAC Heights (Scree Plot)
     output$plot_heights <- renderPlot({
-      req(rv$model, rv$results$algorithm == "hac")
-
-      # Call internal R6 plot method
-      rv$model$plot(type = "heights")
+        req(rv$model, rv$results$algorithm == "hac")
+        plot_heights(rv$model)
     })
 
     # =========================================================================

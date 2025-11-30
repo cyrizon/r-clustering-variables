@@ -45,9 +45,11 @@ Imports:
   pheatmap,
   arrow,
   tzdb,
-  ggdendro
+  ggdendro,
+  ggplot2,
+  reshape2,
+  cluster
 Suggests:
-  cluster,
   testthat,
   usethis,
   devtools,
